@@ -229,21 +229,21 @@ export default function LandingSection({ onBookNow }: LandingSectionProps) {
               </div>
             )}
 
-            {/* Integrated Analytics Telemetry Row */}
-            <div id="telemetry" className="pt-10 border-t border-slate-200/80 grid grid-cols-3 gap-6 max-w-md mx-auto lg:mx-0">
-              <div>
+            {/* Cleaned & Fixed Mobile Layout Telemetry Row */}
+            <div id="telemetry" className="pt-10 border-t border-slate-200/80 grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-md mx-auto lg:mx-0 text-center sm:text-left">
+              <div className="flex flex-col items-center sm:items-start">
                 <p className="text-3xl font-extrabold text-slate-900 tracking-tight">
                   <AnimatedCounter target={45} suffix="s" />
                 </p>
                 <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1">Avg VA Sorting Time</p>
               </div>
-              <div>
+              <div className="flex flex-col items-center sm:items-start">
                 <p className="text-3xl font-extrabold text-slate-900 tracking-tight">
                   <AnimatedCounter target={99} suffix=".8%" />
                 </p>
                 <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1">Doctor Routing Rate</p>
               </div>
-              <div>
+              <div className="flex flex-col items-center sm:items-start">
                 <p className="text-3xl font-extrabold text-slate-900 tracking-tight">
                   <AnimatedCounter target={12} suffix=" min" />
                 </p>
@@ -260,7 +260,7 @@ export default function LandingSection({ onBookNow }: LandingSectionProps) {
                 alt="Premium Modern Clinical Campus Architecture"
                 fill
                 priority
-                sizes="(max-w-1024px) 100vw, 460px"
+                sizes="(max-width: 1024px) 100vw, 460px"
                 className="object-cover scale-[1.02] filter brightness-[0.97] group-hover:scale-105 transition-transform duration-700 ease-out"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-white/30 via-transparent to-transparent" />
@@ -278,103 +278,101 @@ export default function LandingSection({ onBookNow }: LandingSectionProps) {
           </div>
         </section>
 
-      {/* Bento Grid Architecture Description - Perfectly Proportioned Layout */}
-            <section id="workflow" className="max-w-7xl mx-auto px-6 sm:px-8 pt-12 pb-32 relative z-10">
-            <div className="max-w-2xl mb-16 text-center lg:text-left space-y-2">
-                <h2 className="text-xs font-bold uppercase tracking-[0.25em] text-blue-600">Administrative Flowchart</h2>
-                <p className="text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">How The MedVA Ecosystem Works.</p>
+        {/* Bento Grid Architecture Description */}
+        <section id="workflow" className="max-w-7xl mx-auto px-6 sm:px-8 pt-12 pb-32 relative z-10">
+          <div className="max-w-2xl mb-16 text-center lg:text-left space-y-2">
+            <h2 className="text-xs font-bold uppercase tracking-[0.25em] text-blue-600">Administrative Flowchart</h2>
+            <p className="text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">How The MedVA Ecosystem Works.</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            
+            {/* Bento Box 1: Patient One-Click Action */}
+            <div className="bg-slate-50/60 border border-slate-200/80 rounded-3xl flex flex-col group hover:border-blue-200 hover:bg-white transition-all duration-300 shadow-sm overflow-hidden p-6 gap-5">
+              <div className="relative w-full aspect-[16/10] rounded-2xl overflow-hidden border border-slate-100 bg-slate-100 shrink-0">
+                <Image 
+                  src={HospitalImages.emergencyCare}
+                  alt="Seamless modern medical interface workflow layout"
+                  fill
+                  sizes="(max-width: 768px) 100vw, 400px"
+                  className="object-cover group-hover:scale-105 transition-all duration-500"
+                />
+              </div>
+              
+              <div className="space-y-3 flex-grow flex flex-col justify-start">
+                <div className="inline-flex h-9 w-9 bg-blue-50 text-blue-600 rounded-lg items-center justify-center border border-blue-100 shadow-inner shrink-0">
+                  <Zap className="h-4 w-4" />
+                </div>
+                <h3 className="font-extrabold text-lg text-slate-900 tracking-tight">1. Instant Intake Request</h3>
+                <p className="text-xs sm:text-sm text-slate-500 leading-relaxed font-normal">
+                  Patients select a generic department slot with a single click. No complex forms or long medical history fields required upfront.
+                </p>
+              </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                
-                {/* Bento Box 1: Patient One-Click Action */}
-                <div className="bg-slate-50/60 border border-slate-200/80 rounded-3xl flex flex-col group hover:border-blue-200 hover:bg-white transition-all duration-300 shadow-sm overflow-hidden p-6 gap-5">
-                {/* 1. Image Component on Top guarantees uniform canvas aspect bounds */}
-                <div className="relative w-full aspect-[16/10] rounded-2xl overflow-hidden border border-slate-100 bg-slate-100 shrink-0">
-                    <Image 
-                    src={HospitalImages.emergencyCare}
-                    alt="Seamless modern medical interface workflow layout"
-                    fill
-                    sizes="(max-w-768px) 100vw, 400px"
-                    className="object-cover group-hover:scale-105 transition-all duration-500"
-                    />
+            {/* Bento Box 2: VA Dispatch Dashboard */}
+            <div className="bg-slate-50/60 border border-slate-200/80 rounded-3xl flex flex-col group hover:border-blue-200 hover:bg-white transition-all duration-300 shadow-sm overflow-hidden p-6 gap-5">
+              <div className="relative w-full aspect-[16/10] rounded-2xl overflow-hidden border border-slate-100 bg-slate-100 shrink-0">
+                <Image 
+                  src={HospitalImages.VirtualAssistant}
+                  alt="Central medical coordination hub infrastructure"
+                  fill
+                  sizes="(max-width: 768px) 100vw, 400px"
+                  className="object-cover group-hover:scale-105 transition-all duration-500"
+                />
+              </div>
+              
+              <div className="space-y-3 flex-grow flex flex-col justify-start">
+                <div className="inline-flex h-9 w-9 bg-indigo-50 text-indigo-600 rounded-lg items-center justify-center border border-indigo-100 shadow-inner shrink-0">
+                  <Layers className="h-4 w-4" />
                 </div>
-                
-                {/* 2. Text elements follow naturally below with distinct spacing */}
-                <div className="space-y-3 flex-grow flex flex-col justify-start">
-                    <div className="inline-flex h-9 w-9 bg-blue-50 text-blue-600 rounded-lg items-center justify-center border border-blue-100 shadow-inner shrink-0">
-                    <Zap className="h-4 w-4" />
-                    </div>
-                    <h3 className="font-extrabold text-lg text-slate-900 tracking-tight">1. Instant Intake Request</h3>
-                    <p className="text-xs sm:text-sm text-slate-500 leading-relaxed font-normal">
-                    Patients select a generic department slot with a single click. No complex forms or long medical history fields required upfront.
-                    </p>
-                </div>
-                </div>
-
-                {/* Bento Box 2: VA Dispatch Dashboard */}
-                <div className="bg-slate-50/60 border border-slate-200/80 rounded-3xl flex flex-col group hover:border-blue-200 hover:bg-white transition-all duration-300 shadow-sm overflow-hidden p-6 gap-5">
-                <div className="relative w-full aspect-[16/10] rounded-2xl overflow-hidden border border-slate-100 bg-slate-100 shrink-0">
-                    <Image 
-                    src={HospitalImages.VirtualAssistant}
-                    alt="Central medical coordination hub infrastructure"
-                    fill
-                    sizes="(max-w-768px) 100vw, 400px"
-                    className="object-cover group-hover:scale-105 transition-all duration-500"
-                    />
-                </div>
-                
-                <div className="space-y-3 flex-grow flex flex-col justify-start">
-                    <div className="inline-flex h-9 w-9 bg-indigo-50 text-indigo-600 rounded-lg items-center justify-center border border-indigo-100 shadow-inner shrink-0">
-                    <Layers className="h-4 w-4" />
-                    </div>
-                    <h3 className="font-extrabold text-lg text-slate-900 tracking-tight">2. Assistant Verification</h3>
-                    <p className="text-xs sm:text-sm text-slate-500 leading-relaxed font-normal">
-                    The receptionist or remote virtual assistant takes the inbound ticket, confirms insurance coverage, sorts urgency level, and updates scheduling parameters.
-                    </p>
-                </div>
-                </div>
-
-                {/* Bento Box 3: Doctor Allocation Output */}
-                <div className="bg-slate-50/60 border border-slate-200/80 rounded-3xl flex flex-col group hover:border-blue-200 hover:bg-white transition-all duration-300 shadow-sm overflow-hidden p-6 gap-5">
-                <div className="relative w-full aspect-[16/10] rounded-2xl overflow-hidden border border-slate-100 bg-slate-100 shrink-0">
-                    <Image 
-                    src={HospitalImages.doctorTeam}
-                    alt="Certified medical specialist practitioner staff team"
-                    fill
-                    sizes="(max-w-768px) 100vw, 400px"
-                    className="object-cover object-top group-hover:scale-105 transition-all duration-500" 
-                    />
-                </div>
-                
-                <div className="space-y-3 flex-grow flex flex-col justify-start">
-                    <div className="inline-flex h-9 w-9 bg-emerald-50 text-emerald-600 rounded-lg items-center justify-center border border-emerald-100 shadow-inner shrink-0">
-                    <Users className="h-4 w-4" />
-                    </div>
-                    <h3 className="font-extrabold text-lg text-slate-900 tracking-tight">3. Physician Pipeline Lock</h3>
-                    <p className="text-xs sm:text-sm text-slate-500 leading-relaxed font-normal">
-                    Once verified, the receptionist locks the date and pushes the clean package directly to the doctor’s operational calendar.
-                    </p>
-                </div>
-                </div>
-
-                {/* Large Horizontal Bottom Block regarding safety guidelines */}
-                <div className="md:col-span-3 bg-slate-50/60 border border-slate-200/80 p-8 rounded-3xl flex flex-col md:flex-row md:items-center justify-between gap-6 group hover:border-blue-200 hover:bg-white transition-all duration-300 shadow-sm">
-                <div className="space-y-2 max-w-2xl">
-                    <h3 className="font-extrabold text-lg text-slate-900 tracking-tight flex items-center gap-2">
-                    <ShieldAlert className="h-5 w-5 text-amber-600" /> Crisis & Emergency Disclaimer
-                    </h3>
-                    <p className="text-xs text-slate-500 leading-relaxed font-normal">
-                    Our remote virtual assistant queues handle elective consultations and scheduled outpatient operations. For physical critical emergencies or ambulance dispatch, call 911 immediately.
-                    </p>
-                </div>
-                <div className="flex gap-4 items-center whitespace-nowrap text-[11px] font-bold uppercase text-slate-400 tracking-wider">
-                    <span className="flex items-center gap-1"><ShieldEllipsis className="h-4 w-4 text-blue-500" /> HIPAA Validated</span>
-                </div>
-                </div>
-
+                <h3 className="font-extrabold text-lg text-slate-900 tracking-tight">2. Assistant Verification</h3>
+                <p className="text-xs sm:text-sm text-slate-500 leading-relaxed font-normal">
+                  The receptionist or remote virtual assistant takes the inbound ticket, confirms insurance coverage, sorts urgency level, and updates scheduling parameters.
+                </p>
+              </div>
             </div>
-            </section>
+
+            {/* Bento Box 3: Doctor Allocation Output */}
+            <div className="bg-slate-50/60 border border-slate-200/80 rounded-3xl flex flex-col group hover:border-blue-200 hover:bg-white transition-all duration-300 shadow-sm overflow-hidden p-6 gap-5">
+              <div className="relative w-full aspect-[16/10] rounded-2xl overflow-hidden border border-slate-100 bg-slate-100 shrink-0">
+                <Image 
+                  src={HospitalImages.doctorTeam}
+                  alt="Certified medical specialist practitioner staff team"
+                  fill
+                  sizes="(max-width: 768px) 100vw, 400px"
+                  className="object-cover object-top group-hover:scale-105 transition-all duration-500" 
+                />
+              </div>
+              
+              <div className="space-y-3 flex-grow flex flex-col justify-start">
+                <div className="inline-flex h-9 w-9 bg-emerald-50 text-emerald-600 rounded-lg items-center justify-center border border-emerald-100 shadow-inner shrink-0">
+                  <Users className="h-4 w-4" />
+                </div>
+                <h3 className="font-extrabold text-lg text-slate-900 tracking-tight">3. Physician Pipeline Lock</h3>
+                <p className="text-xs sm:text-sm text-slate-500 leading-relaxed font-normal">
+                  Once verified, the receptionist locks the date and pushes the clean package directly to the doctor’s operational calendar.
+                </p>
+              </div>
+            </div>
+
+            {/* Large Horizontal Bottom Block regarding safety guidelines */}
+            <div className="md:col-span-3 bg-slate-50/60 border border-slate-200/80 p-8 rounded-3xl flex flex-col md:flex-row md:items-center justify-between gap-6 group hover:border-blue-200 hover:bg-white transition-all duration-300 shadow-sm">
+              <div className="space-y-2 max-w-2xl">
+                <h3 className="font-extrabold text-lg text-slate-900 tracking-tight flex items-center gap-2">
+                  <ShieldAlert className="h-5 w-5 text-amber-600" /> Crisis & Emergency Disclaimer
+                </h3>
+                <p className="text-xs text-slate-500 leading-relaxed font-normal">
+                  Our remote virtual assistant queues handle elective consultations and scheduled outpatient operations. For physical critical emergencies or ambulance dispatch, call 911 immediately.
+                </p>
+              </div>
+              <div className="flex gap-4 items-center whitespace-nowrap text-[11px] font-bold uppercase text-slate-400 tracking-wider">
+                <span className="flex items-center gap-1"><ShieldEllipsis className="h-4 w-4 text-blue-500" /> HIPAA Validated</span>
+              </div>
+            </div>
+
+          </div>
+        </section>
       </main>
 
       {/* Reusable Clean Light Footer */}
