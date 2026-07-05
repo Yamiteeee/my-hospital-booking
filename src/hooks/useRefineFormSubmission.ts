@@ -23,7 +23,7 @@ export function useRefineFormSubmission() {
     e.preventDefault();
     if (!formData.patient_name || !formData.department || !formData.preferredDate) return;
 
-    // 🌟 UNIFIED PIPELINE: Use the exact same engine as the chatbot!
+    //  UNIFIED PIPELINE: Use the exact same engine as the chatbot!
     const calculatedToken = normalizeIncomingReason(formData.department);
 
     mutate(

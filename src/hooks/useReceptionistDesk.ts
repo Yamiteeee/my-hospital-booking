@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useTable, useUpdate } from "@refinedev/core";
-// 🌟 Import your strict mapping token contract
+//  Import your strict mapping token contract
 import { NormalizedReason } from "@/utils/normalization";
 
 export interface BookingRecord {
@@ -10,7 +10,7 @@ export interface BookingRecord {
   patient_name: string;
   phone: string;
   reason: string;
-  // 🌟 STRUCTURAL CONFORMANCE: Add the normalized reason layer to the row interface
+  //  STRUCTURAL CONFORMANCE: Add the normalized reason layer to the row interface
   normalized_reason?: NormalizedReason;
   status: "pending" | "confirmed" | "cancelled" | "checked-in";
   doctorId: string | null;
