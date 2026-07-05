@@ -2,6 +2,8 @@
 
 import React from "react";
 import { Refine, DataProvider, BaseRecord, AuthProvider } from "@refinedev/core";
+//IMPORT YOUR NORMALIZATION LOGIC
+import { normalizeIncomingReason } from "@/utils/normalization";
 
 const AUTHORIZED_IDS = ["VA-101", "VA-102", "MED-999"];
 
@@ -14,8 +16,10 @@ const getLocalData = (resource: string): BaseRecord[] => {
         id: "mock-1",
         patient_name: "Jane Smith",
         phone: "+1 (555) 019-2834",
-        reason: "Department Target: Cardiology. Urgency level: urgent. Target Date: 2026-07-10",
+        reason: "Department Target: Cardiovascular Medicine. Urgency level: urgent.",
         status: "confirmed",
+        doctorId: "doc-1",
+        timeSlot: "09:00",
         created_at: new Date(Date.now() - 3600000).toISOString(),
       },
       {
@@ -24,6 +28,8 @@ const getLocalData = (resource: string): BaseRecord[] => {
         phone: "+1 (555) 014-9921",
         reason: "Persistent migraines and visual aura disruptions.",
         status: "pending",
+        doctorId: null,
+        timeSlot: null,
         created_at: new Date().toISOString(),
       }
     ];
@@ -40,7 +46,17 @@ const setLocalData = (resource: string, data: BaseRecord[]) => {
 
 const mockLocalStorageDataProvider = (): DataProvider => ({
   getList: async ({ resource, sorters }) => {
-    const data = getLocalData(resource);
+    let data = getLocalData(resource);
+    
+    // 🌟 AUTOMATIC NORMALIZATION GATEWAY ON FETCH
+    if (resource === "bookings") {
+      data = data.map((item: any) => ({
+        ...item,
+        normalized_reason: normalizeIncomingReason(item.reason),
+        normalizedReason: normalizeIncomingReason(item.reason), // fallback support
+      }));
+    }
+
     if (sorters?.[0]) {
       const { field, order } = sorters[0];
       data.sort((a, b) => (a[field] < b[field] ? (order === "asc" ? -1 : 1) : a[field] > b[field] ? (order === "asc" ? 1 : -1) : 0));
@@ -60,14 +76,33 @@ const mockLocalStorageDataProvider = (): DataProvider => ({
     const data = getLocalData(resource);
     const idx = data.findIndex((item) => String(item.id) === String(id));
     if (idx > -1) {
-      data[idx] = { ...data[idx], ...(variables as object) };
+      // 🌟 INTERCEPT AND RE-NORMALIZE ON RE-ASSIGNMENTS
+      const updatedRecord = { ...data[idx], ...(variables as object) };
+      if (resource === "bookings") {
+        updatedRecord.normalized_reason = normalizeIncomingReason(updatedRecord.reason);
+        updatedRecord.normalizedReason = normalizeIncomingReason(updatedRecord.reason);
+      }
+      
+      data[idx] = updatedRecord;
       setLocalData(resource, data);
       return { data: data[idx] as any };
     }
     throw new Error(`Record with id ${id} not found`);
   },
 
-  getOne: async () => { throw new Error("Not implemented"); },
+  getOne: async ({ resource, id }) => {
+    const data = getLocalData(resource);
+    const item = data.find((record) => String(record.id) === String(id));
+    if (item) {
+      if (resource === "bookings") {
+        item.normalized_reason = normalizeIncomingReason(item.reason);
+        item.normalizedReason = normalizeIncomingReason(item.reason);
+      }
+      return { data: item as any };
+    }
+    throw new Error(`Record with id ${id} not found`);
+  },
+  
   deleteOne: async () => { throw new Error("Not implemented"); },
   getApiUrl: () => "local-mock",
 });

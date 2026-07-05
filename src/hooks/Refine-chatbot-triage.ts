@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useCreate } from "@refinedev/core";
+// 🌟 IMPORT THE NORMALIZATION ENGINE
+import { normalizeIncomingReason } from "@/utils/normalization";
 
 export type Message = {
   id: string;
@@ -81,6 +83,9 @@ export function useChatbotTriage() {
       setBookingData(finalData);
       setCurrentStep("complete");
       
+      // 🌟 ANALYZE FREE TEXT USER INPUT IMMEDIATELY VIA REGEX CLUSTERS
+      const calculatedToken = normalizeIncomingReason(activeText);
+
       setTimeout(() => {
         setMessages((prev) => [
           ...prev,
@@ -91,13 +96,15 @@ export function useChatbotTriage() {
       setTimeout(() => {
         setIsTyping(false);
 
-        // Dispatches to local storage database seamlessly
+        // Dispatches to Refine provider with complete structural uniformity
         mutate({
           resource: "bookings",
           values: {
             patient_name: finalData.patient_name,
             phone: finalData.phone,
-            reason: finalData.reason,
+            reason: finalData.reason, // Kept intact for the receptionist's triage reading notes
+            // 🌟 STRICT CONTRACT BOUNDARY: Inject analyzed token directly into the record row
+            normalized_reason: calculatedToken,
             status: "pending",
             created_at: new Date().toISOString(),
           },

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useCreate } from "@refinedev/core";
+import { normalizeIncomingReason } from "@/utils/normalization";
 
 export function useRefineFormSubmission() {
   const [showQuickBook, setShowQuickBook] = useState(false);
@@ -10,7 +11,7 @@ export function useRefineFormSubmission() {
   const [formData, setFormData] = useState({
     patient_name: "",
     phone: "",
-    department: "",
+    department: "", // Drops in direct UI string from your select input
     urgency: "routine",
     preferredDate: ""
   });
@@ -22,6 +23,9 @@ export function useRefineFormSubmission() {
     e.preventDefault();
     if (!formData.patient_name || !formData.department || !formData.preferredDate) return;
 
+    // 🌟 UNIFIED PIPELINE: Use the exact same engine as the chatbot!
+    const calculatedToken = normalizeIncomingReason(formData.department);
+
     mutate(
       {
         resource: "bookings",
@@ -29,6 +33,7 @@ export function useRefineFormSubmission() {
           patient_name: formData.patient_name,
           phone: formData.phone || "N/A (Web Portal Intake)",
           reason: `Department Target: ${formData.department}. Urgency level: ${formData.urgency}. Target Date: ${formData.preferredDate}`,
+          normalized_reason: calculatedToken, // Secure relational row binding
           status: "pending",
           created_at: new Date().toISOString()
         }

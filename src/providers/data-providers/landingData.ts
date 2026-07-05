@@ -5,7 +5,7 @@ export const NAVIGATION_LINKS = [
   { label: "VA Dispatch Pipeline", href: "#workflow" },
   { label: "Desk Metrics", href: "#telemetry" },
 ];
-
+//this is for the landing page category section
 export const UNIQUE_DEPARTMENTS = [
   { id: "cardio", name: "Cardiovascular Medicine" },
   { id: "ortho", name: "Orthopedics & Joint Care" },
