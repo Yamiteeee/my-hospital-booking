@@ -2,7 +2,6 @@
 
 import { useEffect } from "react";
 import { useTable, useUpdate } from "@refinedev/core";
-//  Import your strict mapping token contract
 import { NormalizedReason } from "@/utils/normalization";
 
 export interface BookingRecord {
@@ -10,26 +9,28 @@ export interface BookingRecord {
   patient_name: string;
   phone: string;
   reason: string;
-  //  STRUCTURAL CONFORMANCE: Add the normalized reason layer to the row interface
   normalized_reason?: NormalizedReason;
   status: "pending" | "confirmed" | "cancelled" | "checked-in";
   doctorId: string | null;
-  timeSlot: string | null; // e.g., "09:00", "14:00"
+  timeSlot: string | null;
+  preferredDate?: string;
 }
 
 export interface Doctor {
   id: string;
   name: string;
   specialty: string;
-  breaks: string[]; // array of blocked hour strings, e.g. ["12:00", "13:00"]
+  breaks: string[];
 }
 
 export const CLINIC_DOCTORS: Doctor[] = [
   { id: "doc-1", name: "Dr. Sarah Jenkins", specialty: "Cardiology", breaks: ["12:00"] },
   { id: "doc-2", name: "Dr. Marcus Vance", specialty: "Neurology", breaks: ["13:00"] },
   { id: "doc-3", name: "Dr. Elena Rostova", specialty: "General Triage", breaks: ["12:00", "12:30"] },
+  { id: "doc-4", name: "Dr. Arthur Pendelton", specialty: "Orthopedic", breaks: ["15:00"] },
+  // NEW: Pediatrics & Neonatal Care specialist
+  { id: "doc-5", name: "Dr. Maya Lin", specialty: "Pediatrics & Neonatal Care", breaks: ["13:00", "13:30"] }
 ];
-
 export const OPERATIONAL_HOURS = [
   "08:00", "08:30", "09:00", "09:30", "10:00", "10:30", "11:00", "11:30",
   "12:00", "12:30", "13:00", "13:30", "14:00", "14:30", "15:00", "15:30",
@@ -53,17 +54,33 @@ export function useReceptionistDesk() {
   const bookings = result?.data ?? [];
   const isLoading = tableQuery?.isLoading ?? false;
 
-  const handleDispatchAppointment = (id: string, doctorId: string, timeSlot: string) => {
-    mutate({
-      resource: "bookings",
-      id: id,
-      values: { 
-        status: "confirmed",
-        doctorId: doctorId,
-        timeSlot: timeSlot
+  // 🌟 FIX: Accept date argument and clean up options parameter for refine mutate hook
+  const handleDispatchAppointment = (
+    id: string, 
+    doctorId: string, 
+    timeSlot: string, 
+    preferredDate: string,
+    onSuccessCallback?: () => void
+  ) => {
+    mutate(
+      {
+        resource: "bookings",
+        id: id,
+        values: { 
+          status: "confirmed",
+          doctorId: doctorId,
+          timeSlot: timeSlot,
+          preferredDate: preferredDate
+        },
+        mutationMode: "optimistic",
       },
-      mutationMode: "optimistic",
-    });
+      {
+        // 🌟 refine options success hook is defined here in the secondary arg block!
+        onSuccess: () => {
+          if (onSuccessCallback) onSuccessCallback();
+        }
+      }
+    );
   };
 
   const handleStatusUpdate = (id: string, nextStatus: BookingRecord["status"]) => {
@@ -79,6 +96,7 @@ export function useReceptionistDesk() {
     bookings,
     isLoading,
     handleStatusUpdate,
-    handleDispatchAppointment
+    // 🌟 Make sure this is explicitly exposed in the return object!
+    handleDispatchAppointment 
   };
 }

@@ -5,12 +5,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { CLINIC_DOCTORS, OPERATIONAL_HOURS } from "@/hooks/useReceptionistDesk";
-import { SPECIALTY_ROUTING_MAP } from "@/utils/normalization";
+import { Input } from "@/components/ui/input";
+import { CLINIC_DOCTORS, OPERATIONAL_HOURS, BookingRecord, Doctor } from "@/hooks/useReceptionistDesk";
 import { useDispatchEngine } from "@/hooks/useDispatchEngine";
-import { ShieldAlert, UserCheck, Phone, Stethoscope, Clock, CheckCircle2, AlertCircle, ShieldCheck, Users } from "lucide-react";
+import { SPECIALTY_ROUTING_MAP } from "@/utils/normalization";
+import { ShieldAlert, UserCheck, Phone, Stethoscope, Clock, AlertCircle, ShieldCheck, Users, Calendar } from "lucide-react";
 
 export default function ReceptionistSection() {
+  // 🌟 FIX: Connected directly to useDispatchEngine instead of base useReceptionistDesk hook
   const {
     isAuthenticated,
     authChecking,
@@ -24,7 +26,8 @@ export default function ReceptionistSection() {
     currentDoctor,
     targetSpecialty,
     isDepartmentMismatch,
-    getDepartmentMismatchForBooking,
+    selectedDate,
+    setSelectedDate,
     handleStatusUpdate,
     dispatchToSlot
   } = useDispatchEngine();
@@ -70,8 +73,8 @@ export default function ReceptionistSection() {
                 All patient files have been successfully scheduled.
               </div>
             ) : (
-              pendingQueue.map((patient) => {
-                const requiredDept = patient.normalized_reason ? SPECIALTY_ROUTING_MAP[patient.normalized_reason] : null;
+              pendingQueue.map((patient: BookingRecord) => {
+                const requiredDept = patient.normalized_reason ? SPECIALTY_ROUTING_MAP[patient.normalized_reason as keyof typeof SPECIALTY_ROUTING_MAP] : null;
                 const isSelected = selectedPatient?.id === patient.id;
                 
                 return (
@@ -112,7 +115,7 @@ export default function ReceptionistSection() {
           <div className="space-y-2">
             <span className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block">Available Physicians</span>
             <div className="flex flex-wrap gap-2 bg-slate-50 border border-slate-200/60 p-1.5 rounded-xl">
-              {CLINIC_DOCTORS.map((doc) => {
+              {CLINIC_DOCTORS.map((doc: Doctor) => {
                 const isActive = activeDoctorTab === doc.id;
                 const initials = doc.name.split(".").pop()?.trim().charAt(0) || "D";
 
@@ -143,12 +146,25 @@ export default function ReceptionistSection() {
             </div>
           </div>
 
-          {/* Hourly Booking Grid */}
+          {/* Hourly Booking Grid Frame */}
           <Card className="border-slate-200 shadow-sm rounded-xl overflow-hidden bg-white">
             <CardHeader className="bg-slate-50/50 border-b border-slate-100 p-4 sm:p-5 flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
-              <div>
-                <CardTitle className="text-xs font-bold uppercase text-slate-400 tracking-wider">Physician Daily Schedule</CardTitle>
-                <CardDescription className="text-xs text-slate-600 mt-0.5">Showing scheduled blocks for {currentDoctor.name}</CardDescription>
+              <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center w-full sm:w-auto">
+                <div>
+                  <CardTitle className="text-xs font-bold uppercase text-slate-400 tracking-wider">Physician Daily Schedule</CardTitle>
+                  <CardDescription className="text-xs text-slate-600 mt-0.5">Showing blocks for {currentDoctor.name}</CardDescription>
+                </div>
+                
+                {/* Date Picker Input Row */}
+                <div className="flex items-center gap-2 bg-white px-2 py-1 rounded-lg border border-slate-200 shadow-sm">
+                  <Calendar className="h-3.5 w-3.5 text-slate-400" />
+                  <Input 
+                    type="date"
+                    value={selectedDate}
+                    onChange={(e) => setSelectedDate(e.target.value)}
+                    className="h-6 text-xs p-1 border-none focus-visible:ring-0 bg-transparent w-[125px]"
+                  />
+                </div>
               </div>
 
               {/* Security Validation Banner */}
@@ -174,38 +190,37 @@ export default function ReceptionistSection() {
               
               {/* Mobile View */}
               <div className="block sm:hidden divide-y divide-slate-100">
-                {OPERATIONAL_HOURS.map((hour) => {
+                {OPERATIONAL_HOURS.map((hour: string) => {
                   const isBreak = currentDoctor.breaks.includes(hour);
-                  const filledBooking = bookings.find(b => b.doctorId === currentDoctor.id && b.timeSlot === hour && b.status !== "cancelled");
-                  const isWrongMobileDept = getDepartmentMismatchForBooking(filledBooking);
+                  const filledBooking = bookings.find(b => b.doctorId === currentDoctor.id && b.timeSlot === hour && b.preferredDate === selectedDate && b.status !== "cancelled");
 
                   return (
                     <div key={hour} className={`p-4 space-y-2 ${isBreak ? "bg-amber-50/20" : filledBooking ? "bg-slate-50/20" : ""}`}>
                       <div className="flex justify-between items-center">
                         <span className="font-bold text-xs text-slate-700 flex items-center gap-1.5"><Clock className="h-3.5 w-3.5 text-slate-400" /> {hour}</span>
                         {isBreak && <Badge className="bg-amber-100 border-amber-200 hover:bg-amber-100 text-amber-800 text-[9px] font-medium">Break</Badge>}
-                        {filledBooking?.status === "checked-in" && <Badge className="bg-emerald-100 border-emerald-200 hover:bg-emerald-100 text-emerald-800 text-[9px] font-medium">Checked In</Badge>}
+                        {filledBooking && <Badge className="bg-rose-50 border-rose-100 text-rose-700 text-[9px] font-medium">Occupied Slot</Badge>}
                       </div>
                       
                       <div className="text-xs">
                         {filledBooking ? (
-                          <p className="font-semibold text-slate-900">{filledBooking.patient_name}</p>
+                          <div className="space-y-1">
+                            <p className="font-semibold text-slate-900">{filledBooking.patient_name}</p>
+                            {filledBooking.status !== "checked-in" && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleStatusUpdate(filledBooking.id, "checked-in")}
+                                className="w-full h-7 text-[10px] font-medium mt-1"
+                              >
+                                Check In Patient
+                              </Button>
+                            )}
+                          </div>
                         ) : !isBreak ? (
                           <span className="text-slate-400 italic">Open time slot</span>
                         ) : null}
                       </div>
-
-                      {filledBooking && filledBooking.status !== "checked-in" && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          disabled={!!isWrongMobileDept}
-                          onClick={() => handleStatusUpdate(filledBooking.id, "checked-in")}
-                          className="w-full h-8 text-[11px] font-medium mt-2"
-                        >
-                          {isWrongMobileDept ? "Locked: Specialty Dept Mismatch" : "Check In Patient"}
-                        </Button>
-                      )}
 
                       {selectedPatient && !isBreak && !filledBooking && (
                         <Button
@@ -232,10 +247,9 @@ export default function ReceptionistSection() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {OPERATIONAL_HOURS.map((hour) => {
+                  {OPERATIONAL_HOURS.map((hour: string) => {
                     const isBreak = currentDoctor.breaks.includes(hour);
-                    const filledBooking = bookings.find(b => b.doctorId === currentDoctor.id && b.timeSlot === hour && b.status !== "cancelled");
-                    const isWrongDesktopDept = getDepartmentMismatchForBooking(filledBooking);
+                    const filledBooking = bookings.find(b => b.doctorId === currentDoctor.id && b.timeSlot === hour && b.preferredDate === selectedDate && b.status !== "cancelled");
 
                     return (
                       <TableRow key={hour} className={`border-b border-slate-100/80 ${isBreak ? "bg-amber-50/10" : filledBooking ? "bg-slate-50/20" : "hover:bg-slate-50/10"}`}>
@@ -255,8 +269,9 @@ export default function ReceptionistSection() {
                                 <p className="text-xs font-semibold text-slate-900">{filledBooking.patient_name}</p>
                                 <p className="text-[11px] text-slate-500 max-w-[340px] truncate">{filledBooking.reason}</p>
                               </div>
+                              <Badge className="bg-rose-50 border-rose-100 text-rose-700 text-[9px] px-1.5 rounded-md shadow-none">Booked</Badge>
                               {filledBooking.status === "checked-in" && (
-                                <Badge className="bg-emerald-50 border border-emerald-200 hover:bg-emerald-50 text-emerald-700 font-medium text-[9px] px-1.5 py-0 rounded-md shadow-none">Checked In</Badge>
+                                <Badge className="bg-emerald-50 border border-emerald-200 text-emerald-700 font-medium text-[9px] px-1.5 rounded-md shadow-none">Checked In</Badge>
                               )}
                             </div>
                           ) : (
@@ -270,13 +285,10 @@ export default function ReceptionistSection() {
                               <Button
                                 size="sm"
                                 variant="outline"
-                                disabled={!!isWrongDesktopDept}
                                 onClick={() => handleStatusUpdate(filledBooking.id, "checked-in")}
-                                className={`h-7 px-3 text-[11px] font-medium rounded-lg ${
-                                  isWrongDesktopDept ? "text-slate-300 border-slate-100" : "text-emerald-600 border-slate-200 hover:bg-emerald-50 hover:border-emerald-200"
-                                }`}
+                                className="h-7 px-3 text-[11px] font-medium rounded-lg text-emerald-600 border-slate-200 hover:bg-emerald-50 hover:border-emerald-200"
                               >
-                                {isWrongDesktopDept ? "Specialty Lock" : "Check In"}
+                                Check In
                               </Button>
                             )
                           ) : selectedPatient ? (

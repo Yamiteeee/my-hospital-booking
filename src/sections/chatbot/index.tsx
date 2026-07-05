@@ -9,6 +9,10 @@ import { useChatbotTriage } from "@/hooks/Refine-chatbot-triage";
 import Image from "next/image";
 import { Bot, User, ArrowLeft, Send, Sparkles, ShieldPlus, Dna } from "lucide-react";
 
+// Shared available options matching your appointment scheduling bounds
+const CHAT_TIME_SLOTS = ["09:00 AM", "10:00 AM", "11:00 AM", "01:00 PM", "02:00 PM", "03:00 PM", "04:00 PM"];
+const REASON_CHIPS = ["Routine Physical", "Cardiology", "Pediatric Case", "Orthopedic"];
+
 interface ChatbotSectionProps {
   onBack: () => void;
 }
@@ -27,15 +31,10 @@ export default function ChatbotSection({ onBack }: ChatbotSectionProps) {
 
   return (
     <div className="w-full h-[100dvh] bg-[#f1f6ff] relative overflow-hidden font-sans flex flex-col justify-center items-center p-3 sm:p-4">
-      
-      {/* Background Graphic Accents */}
       <div className="absolute inset-0 bg-white/40 pointer-events-none" />
-      
-      {/* Background Pattern Fallback wrapper to avoid structural breakage if asset returns 404 */}
       <div 
-        className="absolute inset-0 opacity-[0.06] bg-repeat bg-[size:140px] pointer-events-none data-[missing=true]:hidden"
+        className="absolute inset-0 opacity-[0.06] bg-repeat bg-[size:140px] pointer-events-none"
         style={{ backgroundImage: "url('/medical-pattern.svg')" }}
-        onError={(e) => (e.currentTarget.style.display = "none")}
       />
       
       <div className="absolute top-[-10%] right-[-10%] w-[450px] sm:w-[600px] h-[450px] sm:h-[600px] rounded-full bg-blue-400/15 blur-[90px] sm:blur-[120px] pointer-events-none" />
@@ -48,10 +47,8 @@ export default function ChatbotSection({ onBack }: ChatbotSectionProps) {
         <ShieldPlus className="w-full h-full" strokeWidth={1} />
       </div>
 
-      {/* Main Layout Container - Aligned dead-center with clean loading entry animations */}
       <div className="flex flex-col items-center gap-3 sm:gap-4 max-w-xl w-full h-fit max-h-[95vh] relative z-10 justify-center my-auto animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out">
         
-        {/* Main Title Header */}
         <div className="text-center flex flex-col items-center gap-1 w-full shrink-0">
           <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-blue-50/80 border border-blue-100 shadow-sm text-blue-700 text-[10px] font-semibold tracking-wide uppercase">
             <Sparkles className="h-2.5 w-2.5 text-blue-600 animate-pulse" /> 
@@ -62,13 +59,10 @@ export default function ChatbotSection({ onBack }: ChatbotSectionProps) {
           </h1>
         </div>
 
-        {/* Header Grid: Adapts cleanly from stacked mobile to desktop row blocks */}
         <div className="w-full flex flex-col sm:flex-row items-center gap-3 px-0.5 shrink-0 relative justify-center">
-          
-          {/* High-Resolution Anti-Blur Avatar Render Frame */}
           <div className="flex flex-col items-center shrink-0">
             <div className="relative w-[75px] h-[75px] sm:w-[85px] sm:h-[85px] aspect-square rounded-full p-0.5 bg-gradient-to-tr from-blue-500/30 via-indigo-500/10 to-blue-600/30 border border-white/80 shadow-md backdrop-blur-sm">
-              <div className="relative w-full h-full rounded-full overflow-hidden border border-white bg-slate-50 [image-rendering:auto]">
+              <div className="relative w-full h-full rounded-full overflow-hidden border border-white bg-slate-50">
                 <Image 
                   src={HospitalImages.coraCharacter} 
                   alt="AI Triage Representative Cora"
@@ -83,16 +77,12 @@ export default function ChatbotSection({ onBack }: ChatbotSectionProps) {
             </div>
           </div>
 
-          {/* Context Speech Bubble */}
           <div className="relative bg-white border border-slate-200/70 shadow-md rounded-2xl p-3 pr-20 text-[11px] sm:text-xs text-slate-600 text-center sm:text-left flex-1 font-medium leading-relaxed min-h-[70px] flex items-center justify-center sm:justify-start">
             <span className="pr-2 sm:pr-4">
               I'm here to streamline check-in. Answer a few questions below to securely route your details to our team.
             </span>
-            
-            {/* Desktop-only Context Pointer */}
             <div className="hidden sm:block absolute bottom-[32px] left-[-6px] w-3 h-3 bg-white border-l border-b border-slate-200/70 rotate-45 pointer-events-none" />
             
-            {/* Responsive Corner Bound Back Action */}
             <Button 
               variant="outline" 
               size="sm" 
@@ -102,10 +92,8 @@ export default function ChatbotSection({ onBack }: ChatbotSectionProps) {
               <ArrowLeft className="h-2.5 w-2.5 text-blue-600" /> Back
             </Button>
           </div>
-
         </div>
         
-        {/* Main Chat Frame Element */}
         <div className="w-full flex flex-col shrink-0">
           <Card className="w-full h-[52vh] sm:h-[54vh] max-h-[500px] flex flex-col shadow-xl border-slate-200 bg-white rounded-2xl sm:rounded-3xl overflow-hidden">
             <div className="w-full h-1 bg-slate-100 relative shrink-0">
@@ -132,7 +120,6 @@ export default function ChatbotSection({ onBack }: ChatbotSectionProps) {
             <CardContent className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 bg-slate-50/40">
               {messages.map((msg) => (
                 <div key={msg.id} className={`flex items-start gap-2 ${msg.sender === "user" ? "justify-end" : "justify-start"}`}>
-                  
                   {msg.sender === "bot" && (
                     <div className="h-5.5 w-5.5 rounded-md bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 shrink-0 shadow-sm mt-0.5">
                       <Bot className="h-3 w-3" />
@@ -152,7 +139,6 @@ export default function ChatbotSection({ onBack }: ChatbotSectionProps) {
                       <User className="h-3 w-3" />
                     </div>
                   )}
-
                 </div>
               ))}
 
@@ -171,33 +157,56 @@ export default function ChatbotSection({ onBack }: ChatbotSectionProps) {
               <div ref={chatEndRef} />
             </CardContent>
 
-            {/* Response Pill Chips Container */}
-            {currentStep === "reason" && !isTyping && (
+            {/* Quick-Select Action Chip Selection Panels */}
+            {!isTyping && (
               <div className="px-3 py-1.5 bg-white border-t border-slate-100 flex flex-wrap gap-1 justify-center shrink-0 max-h-[75px] overflow-y-auto">
-                {["Routine Physical", "Cardiology", "Pediatric Case", "Orthopedic"].map((chip) => (
+                {/* Reason Selection Chips */}
+                {currentStep === "reason" && REASON_CHIPS.map((chip) => (
                   <button
                     key={chip}
+                    type="button"
                     onClick={() => handleSend(undefined, chip)}
                     className="text-[9px] sm:text-[10px] font-semibold text-blue-600 bg-blue-50/50 border border-blue-100/70 hover:bg-blue-50 px-2.5 py-0.5 rounded-lg transition-all duration-150"
                   >
                     {chip}
                   </button>
                 ))}
+
+                {/* Time Selection Slots Chips */}
+                {currentStep === "time" && CHAT_TIME_SLOTS.map((slot) => (
+                  <button
+                    key={slot}
+                    type="button"
+                    onClick={() => handleSend(undefined, slot)}
+                    className="text-[9px] sm:text-[10px] font-semibold text-indigo-600 bg-indigo-50/50 border border-indigo-100/70 hover:bg-indigo-50 px-2.5 py-0.5 rounded-lg transition-all duration-150"
+                  >
+                    {slot}
+                  </button>
+                ))}
               </div>
             )}
 
-            {/* Bottom Form Box Area */}
+            {/* Bottom Form Inputs Field Area */}
             <form onSubmit={(e) => handleSend(e)} className="p-2 bg-white border-t border-slate-100 flex gap-1.5 items-center shrink-0">
               <Input 
+                type={currentStep === "date" ? "date" : "text"}
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
-                placeholder={currentStep === "complete" ? "Registration complete." : "Type a response..."}
-                disabled={currentStep === "complete" || isTyping}
+                placeholder={
+                  currentStep === "complete" 
+                    ? "Registration complete." 
+                    : currentStep === "date" 
+                    ? "Select appointment date..." 
+                    : currentStep === "time"
+                    ? "Choose a slot above..."
+                    : "Type a response..."
+                }
+                disabled={currentStep === "complete" || currentStep === "time" || isTyping}
                 className="flex-1 focus-visible:ring-blue-500 rounded-xl text-[11px] bg-slate-50 border-slate-200 h-8 px-3"
               />
               <Button 
                 type="submit" 
-                disabled={currentStep === "complete" || !inputValue.trim() || isTyping} 
+                disabled={currentStep === "complete" || currentStep === "time" || (currentStep !== "date" && !inputValue.trim()) || isTyping} 
                 className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl h-8 w-8 shrink-0 p-0 shadow-md flex items-center justify-center transition-all disabled:bg-slate-100 disabled:text-slate-400"
               >
                 <Send className="h-3 w-3" />

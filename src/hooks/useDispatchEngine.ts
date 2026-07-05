@@ -5,15 +5,16 @@ import { SPECIALTY_ROUTING_MAP } from "@/utils/normalization";
 
 export function useDispatchEngine() {
   const { data: authStatus, isPending: authChecking } = useIsAuthenticated();
+  
+  // 🌟 Now safely pulling the handler exposed by useReceptionistDesk
   const { bookings, isLoading, handleStatusUpdate, handleDispatchAppointment } = useReceptionistDesk();
   
+  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split("T")[0]);
   const [selectedPatient, setSelectedPatient] = useState<BookingRecord | null>(null);
   const [activeDoctorTab, setActiveDoctorTab] = useState<string>(CLINIC_DOCTORS[0].id);
 
-  // Find active physician
   const currentDoctor = CLINIC_DOCTORS.find(d => d.id === activeDoctorTab) || CLINIC_DOCTORS[0];
 
-  // Unified Security Lookup for selected patient
   const targetSpecialty = selectedPatient?.normalized_reason 
     ? SPECIALTY_ROUTING_MAP[selectedPatient.normalized_reason] 
     : null;
@@ -23,7 +24,6 @@ export function useDispatchEngine() {
   // Pending queue filtering
   const pendingQueue = bookings.filter(b => b.status === "pending" || !b.status);
 
-  // Utility to verify matching specialties for any row allocation
   const getDepartmentMismatchForBooking = (booking: BookingRecord | undefined) => {
     if (!booking?.normalized_reason) return null;
     const filledDept = SPECIALTY_ROUTING_MAP[booking.normalized_reason];
@@ -32,8 +32,17 @@ export function useDispatchEngine() {
 
   const dispatchToSlot = (hour: string) => {
     if (!selectedPatient || isDepartmentMismatch) return;
-    handleDispatchAppointment(selectedPatient.id, currentDoctor.id, hour);
-    setSelectedPatient(null);
+    
+    // We pass our clean closure callback as the 5th parameter down to the hook runner
+    handleDispatchAppointment(
+      selectedPatient.id, 
+      currentDoctor.id, 
+      hour, 
+      selectedDate,
+      () => {
+        setSelectedPatient(null);
+      }
+    );
   };
 
   return {
@@ -51,6 +60,8 @@ export function useDispatchEngine() {
     isDepartmentMismatch,
     getDepartmentMismatchForBooking,
     handleStatusUpdate,
-    dispatchToSlot
+    dispatchToSlot,
+    selectedDate,
+    setSelectedDate
   };
 }

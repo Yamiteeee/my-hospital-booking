@@ -3,17 +3,20 @@
 import { useState } from "react";
 import { useCreate } from "@refinedev/core";
 import { normalizeIncomingReason } from "@/utils/normalization";
+import { BookingFormData } from "@/types"; // Import type to keep state fully verified
 
 export function useRefineFormSubmission() {
   const [showQuickBook, setShowQuickBook] = useState(false);
   const [bookingStep, setBookingStep] = useState<"form" | "success">("form");
   
-  const [formData, setFormData] = useState({
+  // Explicitly typing this ensures your state hook matches the types contract perfectly
+  const [formData, setFormData] = useState<BookingFormData>({
     patient_name: "",
     phone: "",
-    department: "", // Drops in direct UI string from your select input
+    department: "", 
     urgency: "routine",
-    preferredDate: ""
+    preferredDate: "",
+    preferredTime: "" // <-- 1. Added Preferred Time to State
   });
 
   const { mutate, mutation } = useCreate();
@@ -21,9 +24,8 @@ export function useRefineFormSubmission() {
 
   const handleBookingSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.patient_name || !formData.department || !formData.preferredDate) return;
+    if (!formData.patient_name || !formData.department || !formData.preferredDate || !formData.preferredTime) return;
 
-    //  UNIFIED PIPELINE: Use the exact same engine as the chatbot!
     const calculatedToken = normalizeIncomingReason(formData.department);
 
     mutate(
@@ -32,8 +34,9 @@ export function useRefineFormSubmission() {
         values: {
           patient_name: formData.patient_name,
           phone: formData.phone || "N/A (Web Portal Intake)",
-          reason: `Department Target: ${formData.department}. Urgency level: ${formData.urgency}. Target Date: ${formData.preferredDate}`,
-          normalized_reason: calculatedToken, // Secure relational row binding
+          // <-- 2. Injected time window into the Refine reason summary field 
+          reason: `Department Target: ${formData.department}. Urgency level: ${formData.urgency}. Target Window: ${formData.preferredDate} @ ${formData.preferredTime}`,
+          normalized_reason: calculatedToken, 
           status: "pending",
           created_at: new Date().toISOString()
         }
@@ -50,7 +53,15 @@ export function useRefineFormSubmission() {
   };
 
   const resetBookingForm = () => {
-    setFormData({ patient_name: "", phone: "", department: "", urgency: "routine", preferredDate: "" });
+    // <-- 3. Cleaned state resetting variables
+    setFormData({ 
+      patient_name: "", 
+      phone: "", 
+      department: "", 
+      urgency: "routine", 
+      preferredDate: "",
+      preferredTime: "" 
+    });
     setBookingStep("form");
     setShowQuickBook(false);
   };
