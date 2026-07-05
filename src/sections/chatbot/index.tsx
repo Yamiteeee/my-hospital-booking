@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { HospitalImages } from "@/providers/image-provider";
-import { useChatbotTriage } from "@/hooks/use-chatbot-triage";
+import { useChatbotTriage } from "@/hooks/Refine-chatbot-triage";
 import Image from "next/image";
 import { Bot, User, ArrowLeft, Send, Sparkles, ShieldPlus, Dna } from "lucide-react";
 

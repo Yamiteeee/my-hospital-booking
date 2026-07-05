@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useMockStore } from "@/providers/mock-store";
+import { useCreate } from "@refinedev/core";
 
 export type Message = {
   id: string;
@@ -12,7 +12,7 @@ export type Message = {
 export type Step = "name" | "phone" | "reason" | "complete";
 
 export function useChatbotTriage() {
-  const { addBooking } = useMockStore();
+  const { mutate } = useCreate();
   
   const [messages, setMessages] = useState<Message[]>([
     { 
@@ -32,7 +32,6 @@ export function useChatbotTriage() {
 
   const chatEndRef = useRef<HTMLDivElement>(null);
 
-  // Keep chat viewport scrolled to bottom
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isTyping]);
@@ -91,10 +90,17 @@ export function useChatbotTriage() {
 
       setTimeout(() => {
         setIsTyping(false);
-        addBooking({
-          patient_name: finalData.patient_name,
-          phone: finalData.phone,
-          reason: finalData.reason
+
+        // Dispatches to local storage database seamlessly
+        mutate({
+          resource: "bookings",
+          values: {
+            patient_name: finalData.patient_name,
+            phone: finalData.phone,
+            reason: finalData.reason,
+            status: "pending",
+            created_at: new Date().toISOString(),
+          },
         });
 
         setMessages((prev) => [

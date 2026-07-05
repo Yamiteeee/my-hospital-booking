@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useId, forwardRef, useImperativeHandle } from "react";
+import React, { useId, forwardRef, useImperativeHandle } from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { 
@@ -9,6 +9,7 @@ import {
 import { HospitalImages } from "@/providers/image-provider";
 import { UNIQUE_DEPARTMENTS, TELEMETRY_METRICS } from "@/providers/data-providers/landingData";
 import { useAnimatedCounter } from "@/hooks/useAnimatedCounter";
+import { useRefineFormSubmission } from "@/hooks/useRefineFormSubmission";
 
 function TelemetryItem({ target, suffix, label }: { target: number; suffix: string; label: string }) {
   const animatedValue = useAnimatedCounter({ target });
@@ -31,18 +32,20 @@ export interface LandingHeroRef {
 }
 
 export const LandingHero = forwardRef<LandingHeroRef, LandingHeroProps>(({ onBookNow }, ref) => {
-  const [showQuickBook, setShowQuickBook] = useState(false);
-  const [bookingStep, setBookingStep] = useState<"form" | "success">("form");
-  const [formData, setFormData] = useState({
-    patientName: "",
-    department: "",
-    urgency: "routine",
-    preferredDate: ""
-  });
-
   const selectId = useId();
+  
+  // Bind extracted hook machinery
+  const {
+    showQuickBook,
+    setShowQuickBook,
+    bookingStep,
+    formData,
+    setFormData,
+    isLoading,
+    handleBookingSubmit,
+    resetBookingForm
+  } = useRefineFormSubmission();
 
-  // Expose function to parent via ref to handle the header action
   useImperativeHandle(ref, () => ({
     triggerQuickBook: () => {
       setShowQuickBook(true);
@@ -54,18 +57,6 @@ export const LandingHero = forwardRef<LandingHeroRef, LandingHeroProps>(({ onBoo
       }, 60);
     }
   }));
-
-  const handleBookingSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.patientName || !formData.department || !formData.preferredDate) return;
-    setBookingStep("success");
-  };
-
-  const resetBookingForm = () => {
-    setFormData({ patientName: "", department: "", urgency: "routine", preferredDate: "" });
-    setBookingStep("form");
-    setShowQuickBook(false);
-  };
 
   return (
     <section id="intake" className="max-w-7xl mx-auto px-6 sm:px-8 pt-16 pb-20 lg:pt-24 lg:pb-24 grid lg:grid-cols-12 gap-16 items-start relative z-10">
@@ -123,8 +114,8 @@ export const LandingHero = forwardRef<LandingHeroRef, LandingHeroProps>(({ onBoo
                         type="text" 
                         required
                         placeholder="John Doe"
-                        value={formData.patientName}
-                        onChange={(e) => setFormData({ ...formData, patientName: e.target.value })}
+                        value={formData.patient_name}
+                        onChange={(e) => setFormData({ ...formData, patient_name: e.target.value })}
                         className="w-full text-xs font-medium bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 outline-none focus:border-blue-500 text-slate-800 transition-colors duration-150"
                       />
                     </div>
@@ -169,8 +160,8 @@ export const LandingHero = forwardRef<LandingHeroRef, LandingHeroProps>(({ onBoo
                     </div>
                   </div>
 
-                  <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl mt-2 text-xs py-5 shadow-md transition-all duration-150 transform active:scale-[0.99] transform-gpu">
-                    Send Request to Reception Desk
+                  <Button type="submit" disabled={isLoading} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl mt-2 text-xs py-5 shadow-md transition-all duration-150 transform active:scale-[0.99] transform-gpu">
+                    {isLoading ? "Dispatching Intake..." : "Send Request to Reception Desk"}
                   </Button>
                 </form>
               ) : (
