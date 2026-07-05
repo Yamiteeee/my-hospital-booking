@@ -1,23 +1,23 @@
 import type { Metadata } from "next";
+import SmoothScrollProvider from "@/components/SmoothScrollProvider";
 import "./globals.css";
-import { MockStoreProvider } from "@/providers/mock-store";
 
 export const metadata: Metadata = {
-  title: "St. Mary's Hospital Booking Desk",
-  description: "Next-gen conversational intake and management dashboard",
+  title: "St. Mary's MedVA Portal",
+  description: "Modern patient care coordination framework",
 };
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
     <html lang="en">
-      <body className="antialiased">
-        <MockStoreProvider>
+      <body className="antialiased min-h-screen flex flex-col bg-slate-50">
+        <SmoothScrollProvider>
           {children}
-        </MockStoreProvider>
+        </SmoothScrollProvider>
       </body>
     </html>
   );
