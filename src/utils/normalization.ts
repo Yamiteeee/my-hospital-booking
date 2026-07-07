@@ -7,8 +7,8 @@ export type NormalizedReason =
   | "CHRONIC_MIGRAINE" 
   | "SEIZURE_EVAL" 
   | "CONCUSSION_FOLLOWUP"
-  | "ORTHOPEDIC_CARE"      // 🌟 Added mapping support from Form UI
-  | "PEDIATRIC_CARE"       // 🌟 Added mapping support from Form UI
+  | "ORTHOPEDIC_CARE"      
+  | "PEDIATRIC_CARE"       
   | "GENERAL_CONSULT";
 
 export const SPECIALTY_ROUTING_MAP: Record<NormalizedReason, string | null> = {
@@ -18,8 +18,8 @@ export const SPECIALTY_ROUTING_MAP: Record<NormalizedReason, string | null> = {
   CHRONIC_MIGRAINE: "Neurology",
   SEIZURE_EVAL: "Neurology",
   CONCUSSION_FOLLOWUP: "Neurology",
-  ORTHOPEDIC_CARE: "Orthopedics & Joint Care",  // 🌟 Matches UI Wing text
-  PEDIATRIC_CARE: "Pediatrics & Neonatal Care", // 🌟 Matches UI Wing text
+  ORTHOPEDIC_CARE: "Orthopedic",               // 🌟 Aligned exactly to Dr. Arthur
+  PEDIATRIC_CARE: "Pediatrics & Neonatal Care", // 🌟 Aligned exactly to Dr. Maya
   GENERAL_CONSULT: null, 
 };
 
@@ -52,7 +52,7 @@ export const normalizeIncomingReason = (reason: string = ""): NormalizedReason =
     return "ORTHOPEDIC_CARE";
   }
 
-  if (/child|baby|pediatric|neonatal|kid/.test(text)) {
+  if (/child|baby|pediatric|neonatal|kid|infant/.test(text)) {
     return "PEDIATRIC_CARE";
   }
 

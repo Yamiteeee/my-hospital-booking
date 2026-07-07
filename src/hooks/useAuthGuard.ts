@@ -2,27 +2,50 @@
 
 import { useState, useEffect } from "react";
 import { useIsAuthenticated } from "@refinedev/core";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 
-type ActiveView = "marketing" | "booking-chat" | "reception-desk";
+type ActiveView = "marketing" | "booking-chat" | "reception-desk" | "doctor-schedule";
 
 export function useAuthGuard() {
   const [view, setView] = useState<ActiveView>("marketing");
+  
+  // Directly retrieve the auth state object from Refine
   const { data: authStatus, isPending: authChecking } = useIsAuthenticated();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const pathname = usePathname();
 
-  // 1. Sync URL query flags (?view=...) to component view state
+  // 1. Sync physical URL routes AND query parameters cleanly to state
   useEffect(() => {
-    const requestedView = searchParams.get("view") as ActiveView | null;
-    if (requestedView && ["marketing", "booking-chat", "reception-desk"].includes(requestedView)) {
-      setView(requestedView);
+    if (pathname === "/doctor") {
+      setView("doctor-schedule");
+      return;
     }
-  }, [searchParams]);
+    
+    // 🌟 ADDED: Handle the physical receptionist route path matching explicitly
+    if (pathname === "/receptionist") {
+      setView("reception-desk");
+      return;
+    }
 
-  // 2. Active Interceptor: Force bounce to login if unauthenticated on a protected screen
+    // Fallback support for dashboard SPA parameters
+    const requestedView = searchParams.get("view") as ActiveView | null;
+    if (requestedView && ["marketing", "booking-chat", "reception-desk", "doctor-schedule"].includes(requestedView)) {
+      setView(requestedView);
+    } else if (pathname === "/") {
+      setView("marketing");
+    }
+  }, [searchParams, pathname]);
+
+  // 2. Clear Active Interceptor Gate
   useEffect(() => {
-    if (view === "reception-desk" && !authChecking && !authStatus?.authenticated) {
+    // 🌟 IMPORTANT: Absolutely stop evaluation if Refine is actively calculating auth status.
+    // This stops unauthenticated flashes from triggering an accidental ejection bounce.
+    if (authChecking) return; 
+
+    const isProtected = view === "reception-desk" || view === "doctor-schedule";
+    
+    if (isProtected && !authStatus?.authenticated) {
       router.push("/login");
     }
   }, [view, authStatus, authChecking, router]);

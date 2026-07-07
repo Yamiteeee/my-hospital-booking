@@ -1,11 +1,13 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Refine, DataProvider, BaseRecord, AuthProvider } from "@refinedev/core";
-//IMPORT YOUR NORMALIZATION LOGIC
 import { normalizeIncomingReason } from "@/utils/normalization";
 
-const AUTHORIZED_IDS = ["VA-101", "VA-102", "MED-999"];
+const AUTHORIZED_IDS = [
+  "VA-101", "VA-102", "MED-999", 
+  "DOC-1", "DOC-2", "DOC-3", "DOC-4", "DOC-5"
+];
 
 const getLocalData = (resource: string): BaseRecord[] => {
   if (typeof window === "undefined") return [];
@@ -20,6 +22,7 @@ const getLocalData = (resource: string): BaseRecord[] => {
         status: "confirmed",
         doctorId: "doc-1",
         timeSlot: "09:00",
+        preferredDate: new Date().toISOString().split("T")[0],
         created_at: new Date(Date.now() - 3600000).toISOString(),
       },
       {
@@ -30,6 +33,7 @@ const getLocalData = (resource: string): BaseRecord[] => {
         status: "pending",
         doctorId: null,
         timeSlot: null,
+        preferredDate: new Date().toISOString().split("T")[0],
         created_at: new Date().toISOString(),
       }
     ];
@@ -48,12 +52,11 @@ const mockLocalStorageDataProvider = (): DataProvider => ({
   getList: async ({ resource, sorters }) => {
     let data = getLocalData(resource);
     
-    // 🌟 AUTOMATIC NORMALIZATION GATEWAY ON FETCH
     if (resource === "bookings") {
       data = data.map((item: any) => ({
         ...item,
         normalized_reason: normalizeIncomingReason(item.reason),
-        normalizedReason: normalizeIncomingReason(item.reason), // fallback support
+        normalizedReason: normalizeIncomingReason(item.reason),
       }));
     }
 
@@ -76,7 +79,6 @@ const mockLocalStorageDataProvider = (): DataProvider => ({
     const data = getLocalData(resource);
     const idx = data.findIndex((item) => String(item.id) === String(id));
     if (idx > -1) {
-      // 🌟 INTERCEPT AND RE-NORMALIZE ON RE-ASSIGNMENTS
       const updatedRecord = { ...data[idx], ...(variables as object) };
       if (resource === "bookings") {
         updatedRecord.normalized_reason = normalizeIncomingReason(updatedRecord.reason);
@@ -111,33 +113,70 @@ const vaAuthProvider: AuthProvider = {
   login: async (params) => {
     const id = params?.companyId || params?.username || params?.email;
     if (id && AUTHORIZED_IDS.includes(id.trim().toUpperCase())) {
-      localStorage.setItem("va_token", id.trim().toUpperCase());
-      return { success: true, redirectTo: "/" };
+      const cleanId = id.trim().toUpperCase();
+      localStorage.setItem("va_token", cleanId);
+
+      const redirectTarget = cleanId.startsWith("DOC-") ? "/doctor" : "/receptionist";
+      return { success: true, redirectTo: redirectTarget };
     }
     return {
       success: false,
-      error: { name: "Login Error", message: "Invalid Credentials. Please check your Company ID Badge." },
+      error: { name: "Login Error", message: "Invalid Credentials. Please check your Staff ID Badge." },
     };
   },
   logout: async () => {
     localStorage.removeItem("va_token");
+    // Explicit dispatch clear to sync local components instantly
+    window.dispatchEvent(new Event("local-data-update"));
     return { success: true, redirectTo: "/login" };
   },
   check: async () => {
     return localStorage.getItem("va_token") ? { authenticated: true } : { authenticated: false, redirectTo: "/login" };
   },
+  // 🌟 FIX: Updated error handler block to prevent logging lockouts
   onError: async (error) => {
-    console.error("Auth Error:", error);
+    console.error("Auth Interceptor Error:", error);
+    
+    // Force a logout redirect frame if we hit unauthenticated errors
+    if (error?.status === 401 || error?.status === 403) {
+      return { logout: true, redirectTo: "/login" };
+    }
+    
+    // Allow standard application state routines to finish without firing hard rejections
     return { logout: false };
   },
-  getPermissions: async () => null,
+  getPermissions: async () => {
+    if (typeof window === "undefined") return null;
+    const token = localStorage.getItem("va_token");
+    if (!token) return null;
+    return token.toUpperCase().startsWith("DOC-") ? "doctor" : "receptionist";
+  },
   getIdentity: async () => {
     const token = localStorage.getItem("va_token");
-    return token ? { id: token, name: `Assistant [${token}]` } : null;
+    if (!token) return null;
+    return {
+      id: token,
+      name: token.startsWith("DOC-") ? `Physician [${token}]` : `Assistant [${token}]`
+    };
   },
 };
 
-export function RefineGlobalProvider({ children }: { children: React.ReactNode }) {
+function RefineCoreConfig({ children }: { children: React.ReactNode }) {
+  const [tokenState, setTokenState] = useState<string | null>(null);
+
+  useEffect(() => {
+    setTokenState(localStorage.getItem("va_token"));
+
+    const syncToken = () => {
+      setTokenState(localStorage.getItem("va_token"));
+    };
+
+    window.addEventListener("local-data-update", syncToken);
+    return () => window.removeEventListener("local-data-update", syncToken);
+  }, []);
+
+  const isDoctor = tokenState ? tokenState.toUpperCase().startsWith("DOC-") : false;
+
   return (
     <Refine
       dataProvider={mockLocalStorageDataProvider()}
@@ -145,14 +184,22 @@ export function RefineGlobalProvider({ children }: { children: React.ReactNode }
       resources={[
         {
           name: "bookings",
-          list: "/receptionist",
+          list: isDoctor ? "/doctor" : "/receptionist",
           create: "/",
-          edit: "/receptionist/edit/:id",
+          edit: isDoctor ? "/doctor/edit/:id" : "/receptionist/edit/:id",
         },
       ]}
       options={{ syncWithLocation: false }}
     >
       {children}
     </Refine>
+  );
+}
+
+export function RefineGlobalProvider({ children }: { children: React.ReactNode }) {
+  return (
+    <RefineCoreConfig>
+      {children}
+    </RefineCoreConfig>
   );
 }

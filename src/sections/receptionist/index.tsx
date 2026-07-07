@@ -9,10 +9,25 @@ import { Input } from "@/components/ui/input";
 import { CLINIC_DOCTORS, OPERATIONAL_HOURS, BookingRecord, Doctor } from "@/hooks/useReceptionistDesk";
 import { useDispatchEngine } from "@/hooks/useDispatchEngine";
 import { SPECIALTY_ROUTING_MAP } from "@/utils/normalization";
-import { ShieldAlert, UserCheck, Phone, Stethoscope, Clock, AlertCircle, ShieldCheck, Users, Calendar } from "lucide-react";
+import { useRouter } from "next/navigation"; // 🌟 ADDED: Next Router
+import { useLogout } from "@refinedev/core"; // 🌟 ADDED: Refine Logout hook
+import { 
+  ShieldAlert, 
+  UserCheck, 
+  Phone, 
+  Stethoscope, 
+  Clock, 
+  AlertCircle, 
+  ShieldCheck, 
+  Users, 
+  Calendar,
+  LogOut // 🌟 ADDED: Logout Icon
+} from "lucide-react";
 
 export default function ReceptionistSection() {
-  // 🌟 FIX: Connected directly to useDispatchEngine instead of base useReceptionistDesk hook
+  const router = useRouter(); // 🌟 ADDED: Initialize router instance
+  const { mutate: logout } = useLogout(); // 🌟 ADDED: Access logout capability
+
   const {
     isAuthenticated,
     authChecking,
@@ -32,6 +47,23 @@ export default function ReceptionistSection() {
     dispatchToSlot
   } = useDispatchEngine();
 
+  // 🌟 ADDED: Unified logout handler matching the physician portal structure
+  const handleEndShift = () => {
+    logout(
+      {}, 
+      {
+        onSuccess: () => {
+          router.push("/login");
+          router.refresh();
+        },
+        onError: (err) => {
+          console.warn("Redirecting fallback active:", err);
+          router.push("/login");
+        }
+      }
+    );
+  };
+
   if (authChecking) {
     return <div className="p-8 text-center text-xs tracking-widest uppercase text-slate-400 animate-pulse pt-24">Verifying Credentials...</div>;
   }
@@ -49,8 +81,22 @@ export default function ReceptionistSection() {
           <h1 className="text-xl font-bold text-slate-900 tracking-tight">Clinic Intake & Scheduling Desk</h1>
           <p className="text-xs text-slate-500">Manage incoming clinic patient files and assign schedules to doctors on duty.</p>
         </div>
-        <div className="text-[11px] font-semibold text-slate-600 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg flex items-center gap-2 self-stretch sm:self-auto justify-center">
-          <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" /> Receptionist Session Active
+        
+        {/* 🌟 UPDATED: Multi-action layout cell housing state indicators and the End Shift button */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
+          <div className="text-[11px] h-10 font-semibold text-slate-600 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl flex items-center gap-2 justify-center shadow-sm">
+            <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" /> Receptionist Session Active
+          </div>
+
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={handleEndShift}
+            className="h-10 border border-slate-200 rounded-xl px-3 bg-white text-slate-500 hover:text-rose-600 text-xs font-semibold shadow-sm transition-all flex items-center justify-center gap-1.5"
+          >
+            <LogOut className="h-4 w-4" />
+            <span>End Shift</span>
+          </Button>
         </div>
       </div>
 
