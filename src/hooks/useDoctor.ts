@@ -21,7 +21,7 @@ export function useDoctor() {
     doctors,
     selectedDate,
     setSelectedDate,
-    handleStatusUpdate,
+    handleStatusUpdate: baseStatusUpdate, // Alias the base engine update method
   } = useDispatchEngine();
 
   // Handle shift end with a deterministic navigation sequence
@@ -55,13 +55,25 @@ export function useDoctor() {
   };
 
   // Filter out relevant patient appointments for the chosen calendar window
- // 🌟 FIXED: Added (b as any) so TypeScript allows both doctorId and badge_id checks smoothly
-const dailyAppointments = (bookings || []).filter(
-  (b) =>
-    ((b as any).doctorId || (b as any).badge_id || (b as any).doctor_id)?.toUpperCase() === activeDoctorId &&
-    b.preferredDate === selectedDate &&
-    b.status !== "cancelled"
-);
+  // 🌟 MODIFIED: Removed strict exclusions so finished appointments ("completed") still render inside the agenda grid
+  const dailyAppointments = (bookings || []).filter(
+    (b) =>
+      ((b as any).doctorId || (b as any).badge_id || (b as any).doctor_id)?.toUpperCase() === activeDoctorId &&
+      b.preferredDate === selectedDate &&
+      b.status !== "cancelled"
+  );
+
+  // 🌟 UPDATED LIFE-CYCLE METHOD SIGNATURE
+  const handleStatusUpdate = async (
+    bookingId: string, 
+    status: "pending" | "confirmed" | "cancelled" | "checked_in" | "present" | "completed"
+  ) => {
+    try {
+      await baseStatusUpdate(bookingId, status as any);
+    } catch (error) {
+      console.error("Failed to update patient status from physician terminal:", error);
+    }
+  };
 
   return {
     identity,

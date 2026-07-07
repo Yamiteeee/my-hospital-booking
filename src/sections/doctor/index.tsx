@@ -6,13 +6,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { OPERATIONAL_HOURS } from "@/hooks/useReceptionistDesk";
-import { useDoctor } from "@/hooks/useDoctor"; // 🌟 Imported your new hook!
-import { 
-  Clock, 
-  Calendar as CalendarIcon, 
-  Coffee, 
-  User, 
-  LogOut, 
+import { useDoctor } from "@/hooks/useDoctor"; 
+import {  
+  Clock,  
+  Calendar as CalendarIcon,  
+  Coffee,  
+  User,  
+  LogOut,  
   FileText,
   CheckCircle 
 } from "lucide-react";
@@ -24,12 +24,12 @@ export default function DoctorDashboard() {
     selectedDate,
     setSelectedDate,
     currentDoctor,
-    dailyAppointments,
+    dailyAppointments = [], 
     handleEndShift,
     handleStatusUpdate,
   } = useDoctor();
 
-  if (identityLoading) {
+  if (identityLoading || !currentDoctor) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <p className="text-xs font-bold text-slate-400 uppercase tracking-widest animate-pulse">
@@ -54,10 +54,10 @@ export default function DoctorDashboard() {
             </span>
           </div>
           <h1 className="text-xl font-bold text-slate-900 tracking-tight mt-2">
-            Welcome back, {currentDoctor.name}
+            Welcome back, {currentDoctor?.name || "Doctor"}
           </h1>
           <p className="text-xs text-slate-500 mt-0.5">
-            Department: <span className="font-semibold">{currentDoctor.specialty}</span>
+            Department: <span className="font-semibold">{currentDoctor?.specialty || "General Medicine"}</span>
           </p>
         </div>
 
@@ -77,10 +77,10 @@ export default function DoctorDashboard() {
             size="sm"
             variant="ghost"
             onClick={handleEndShift} 
-            className="h-10 border border-slate-200 rounded-xl px-3 bg-white text-slate-500 hover:text-rose-600 text-xs font-semibold shadow-sm transition-all"
+            className="h-10 border border-slate-200 rounded-xl px-3 bg-white text-slate-500 hover:text-rose-600 text-xs font-semibold shadow-sm transition-all flex items-center justify-center gap-1.5"
           >
             <LogOut className="h-4 w-4" />
-            <span className="hidden sm:inline ml-1.5">End Shift</span>
+            <span className="hidden sm:inline">End Shift</span>
           </Button>
         </div>
       </div>
@@ -96,22 +96,22 @@ export default function DoctorDashboard() {
             <CardContent className="p-5 space-y-4">
               <div className="flex justify-between items-center border-b border-slate-50 pb-3">
                 <span className="text-xs text-slate-500 font-medium">Total Manifest</span>
-                <Badge variant="secondary" className="bg-slate-100 text-slate-700 font-bold text-xs px-2.5">
+                <Badge variant="secondary" className="bg-slate-100 text-slate-700 font-bold text-xs px-2.5 shadow-none">
                   {dailyAppointments.length} Booked
                 </Badge>
               </div>
 
               <div className="flex justify-between items-center border-b border-slate-50 pb-3">
-                <span className="text-xs text-slate-500 font-medium">Checked In Waiting</span>
-                <Badge className="bg-emerald-50 border border-emerald-100 text-emerald-700 font-bold text-xs px-2.5 shadow-none">
-                  {dailyAppointments.filter(b => b.status === "checked-in").length} Present
+                <span className="text-xs text-slate-500 font-medium">Active Consultations</span>
+                <Badge className="bg-amber-50 border border-amber-100 text-amber-700 font-bold text-xs px-2.5 shadow-none">
+                  {dailyAppointments.filter(b => b.status === "present").length} In Room
                 </Badge>
               </div>
 
               <div className="flex justify-between items-center">
                 <span className="text-xs text-slate-500 font-medium">Scheduled Breaks</span>
                 <div className="flex items-center gap-1 text-amber-700 font-semibold text-xs">
-                  <Coffee className="h-3.5 w-3.5 text-amber-500" /> {currentDoctor.breaks?.length || 0} Blocks
+                  <Coffee className="h-3.5 w-3.5 text-amber-500" /> {currentDoctor?.breaks?.length || 0} Blocks
                 </div>
               </div>
             </CardContent>
@@ -125,8 +125,13 @@ export default function DoctorDashboard() {
           <Card className="border-slate-200 shadow-sm rounded-xl overflow-hidden bg-white">
             <CardContent className="p-0 divide-y divide-slate-100">
               {OPERATIONAL_HOURS.map((hour) => {
-                const isBreak = (currentDoctor.breaks as string[])?.includes(hour) ?? false;
+                const isBreak = (currentDoctor?.breaks as string[])?.includes(hour) ?? false;
                 const appointment = dailyAppointments.find(b => b.timeSlot === hour);
+                
+                // 🌟 WORKFLOW LIFE-CYCLE CONTROLS
+                const isWaiting = appointment?.status === "checked_in";
+                const inConsultation = appointment?.status === "present";
+                const isFinished = appointment?.status === "completed";
 
                 return (
                   <div key={hour} className="flex min-h-[76px] transition-all hover:bg-slate-50/30 group">
@@ -155,21 +160,29 @@ export default function DoctorDashboard() {
 
                       ) : appointment ? (
                         <div className={`border rounded-xl px-4 py-3 flex flex-col sm:flex-row gap-3 sm:items-center justify-between shadow-sm transition-all ${
-                          appointment.status === "checked-in" 
-                            ? "bg-emerald-50/30 border-emerald-200 text-emerald-950" 
-                            : "bg-blue-50/20 border-blue-100 text-blue-950"
+                          inConsultation 
+                            ? "bg-amber-50/40 border-amber-200 text-amber-950 shadow-inner" 
+                            : isFinished
+                              ? "bg-slate-50/80 border-slate-200 opacity-60 text-slate-500"
+                              : "bg-emerald-50/30 border-emerald-100 text-emerald-950"
                         }`}>
                           <div className="flex items-start gap-3">
                             <div className={`h-8 w-8 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 shadow-none ${
-                              appointment.status === "checked-in" ? "bg-emerald-600 text-white" : "bg-blue-600 text-white"
+                              inConsultation ? "bg-amber-500 text-white" : isFinished ? "bg-slate-400 text-white" : "bg-emerald-600 text-white"
                             }`}>
                               <User className="h-4 w-4" />
                             </div>
                             <div className="space-y-0.5">
                               <div className="flex flex-wrap items-center gap-2">
                                 <p className="text-xs font-bold tracking-tight">{appointment.patient_name}</p>
-                                {appointment.status === "checked-in" && (
-                                  <Badge className="bg-emerald-600 text-white border-transparent text-[9px] font-bold px-1.5 h-4 flex items-center py-0 rounded shadow-none">Arrived / Ready</Badge>
+                                {isWaiting && (
+                                  <Badge className="bg-emerald-600 text-white border-transparent text-[9px] font-bold px-1.5 h-4 flex items-center py-0 rounded shadow-none">Waiting Outside</Badge>
+                                )}
+                                {inConsultation && (
+                                  <Badge className="bg-amber-500 text-white border-transparent text-[9px] font-bold px-1.5 h-4 flex items-center py-0 rounded shadow-none animate-pulse">In Consultation</Badge>
+                                )}
+                                {isFinished && (
+                                  <Badge className="bg-slate-400 text-white border-transparent text-[9px] font-bold px-1.5 h-4 flex items-center py-0 rounded shadow-none">Done / Checked Out</Badge>
                                 )}
                               </div>
                               <p className="text-[11px] opacity-80 max-w-[400px] leading-normal flex items-center gap-1">
@@ -178,19 +191,32 @@ export default function DoctorDashboard() {
                             </div>
                           </div>
 
+                          {/* 🌟 SEQUENTIAL PIPELINE ACTIONS */}
                           <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
-                            {appointment.status !== "checked-in" ? (
+                            {isWaiting && (
                               <Button
                                 size="sm"
-                                variant="outline"
-                                onClick={() => handleStatusUpdate(appointment.id, "checked-in")}
-                                className="h-7 text-[11px] font-semibold bg-white border-slate-200 shadow-none text-slate-700 hover:bg-slate-50"
+                                onClick={() => handleStatusUpdate(appointment.id, "present")}
+                                className="h-7 text-[11px] font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-none rounded-md"
                               >
-                                Mark Present
+                                Start Consultation
                               </Button>
-                            ) : (
-                              <div className="text-[11px] font-bold text-emerald-700 flex items-center gap-1.5 px-2 bg-emerald-100/50 py-1 rounded-md border border-emerald-200/60">
-                                <CheckCircle className="h-3.5 w-3.5 text-emerald-600" /> Patient Checked In
+                            )}
+
+                            {inConsultation && (
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => handleStatusUpdate(appointment.id, "completed")}
+                                className="h-7 text-[11px] font-semibold bg-rose-600 hover:bg-rose-700 text-white shadow-none rounded-md"
+                              >
+                                End Consultation
+                              </Button>
+                            )}
+
+                            {isFinished && (
+                              <div className="text-[11px] font-bold text-slate-500 flex items-center gap-1.5 px-2 bg-slate-100 py-1 rounded-md border border-slate-200">
+                                <CheckCircle className="h-3.5 w-3.5 text-slate-400" /> Consultation Finished
                               </div>
                             )}
                           </div>

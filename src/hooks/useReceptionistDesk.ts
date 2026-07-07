@@ -9,19 +9,21 @@ export interface BookingRecord {
   phone: string;
   reason: string;
   normalized_reason?: NormalizedReason;
-  status: "pending" | "confirmed" | "cancelled" | "checked-in";
-  doctorId: string | null;   // Frontend backward compatibility reference
-  badge_id: string | null;   // Maps directly to database relational configurations
+  status: "pending" | "confirmed" | "cancelled" | "checked_in" | "present" | "completed";
+  doctorId: string | null;   
+  badge_id: string | null;   
   timeSlot: string | null;
   preferredDate?: string;
+  completed_at?: string | null; 
 }
 
 export interface Doctor {
   id: string;
-  badge_id: string; // Relates to alphanumeric structural identifiers (e.g. 'doc-1')
+  badge_id: string; 
   name: string;
   specialty: string;
   breaks: string[];
+  availability_status: "available" | "lunch_break" | "rest_time" | "early_out"; 
 }
 
 export const OPERATIONAL_HOURS = [
@@ -36,7 +38,8 @@ export function useReceptionistDesk() {
     resource: "bookings",
     sorters: { initial: [{ field: "created_at", order: "desc" }] }
   });
-// 2. Live-fetch doctors from Supabase (Destructured using your version's properties)
+
+  // 2. Live-fetch doctors from Supabase
   const { result: doctorsResult, query: doctorsQuery } = useList<Doctor>({
     resource: "doctors",
     pagination: { mode: "off" } 
@@ -44,16 +47,15 @@ export function useReceptionistDesk() {
 
   const { mutate } = useUpdate();
 
-  // Pure data streams from the server mapped via your platform wrappers
   const bookings = tableQuery?.data?.data ?? [];
-  
-  // 🌟 FIXED: Pulling data out of 'result' and loading state out of 'query'
   const doctors = doctorsResult?.data ?? [];
   const isLoading = tableQuery?.isLoading || doctorsQuery?.isLoading;
 
+
+
 const handleDispatchAppointment = (
     id: string, 
-    doctorBadgeId: string, // Holds the string value like 'doc-1'
+    doctorBadgeId: string, 
     timeSlot: string, 
     preferredDate: string,
     onSuccessCallback?: () => void
@@ -63,11 +65,10 @@ const handleDispatchAppointment = (
         resource: "bookings",
         id: id,
         values: { 
-          status: "confirmed",
-          doctorId: doctorBadgeId, // 🌟 FIXED: Maps directly to your 'doctorId' column string (e.g. 'doc-1')
-          timeSlot: timeSlot,      // Maps to camelCase 'timeSlot'
-          preferredDate: preferredDate // Maps to camelCase 'preferredDate'
-          // ❌ REMOVED badge_id since it doesn't exist in your bookings table schema
+          status: "pending", // 🌟 CHANGED from "confirmed" to match your database check constraints
+          doctorId: doctorBadgeId, 
+          timeSlot: timeSlot,      
+          preferredDate: preferredDate 
         },
         mutationMode: "optimistic",
       },
@@ -82,11 +83,29 @@ const handleDispatchAppointment = (
     );
   };
 
+  
+  // Automatically builds/injects full ISO strings when consultation finishes
   const handleStatusUpdate = (id: string, nextStatus: BookingRecord["status"]) => {
+    const updateValues: Record<string, any> = { status: nextStatus };
+
+    if (nextStatus === "completed") {
+      updateValues.completed_at = new Date().toISOString();
+    }
+
     mutate({
       resource: "bookings",
       id: id,
-      values: { status: nextStatus },
+      values: updateValues,
+      mutationMode: "optimistic",
+    });
+  };
+
+  // Modifies a doctor's duty availability status flags
+  const handleDoctorAvailabilityUpdate = (doctorId: string, nextAvailability: Doctor["availability_status"]) => {
+    mutate({
+      resource: "doctors",
+      id: doctorId,
+      values: { availability_status: nextAvailability },
       mutationMode: "optimistic",
     });
   };
@@ -96,6 +115,7 @@ const handleDispatchAppointment = (
     doctors, 
     isLoading,
     handleStatusUpdate,
+    handleDoctorAvailabilityUpdate, 
     handleDispatchAppointment 
   };
 }

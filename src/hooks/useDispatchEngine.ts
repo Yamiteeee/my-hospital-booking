@@ -8,13 +8,19 @@ import { SPECIALTY_ROUTING_MAP } from "@/utils/normalization";
 export function useDispatchEngine() {
   const { data: authStatus, isPending: authChecking } = useIsAuthenticated();
   
-  const { bookings, doctors, isLoading, handleStatusUpdate, handleDispatchAppointment } = useReceptionistDesk();
+  const { 
+    bookings, 
+    doctors, 
+    isLoading, 
+    handleStatusUpdate, 
+    handleDoctorAvailabilityUpdate, // 🌟 Pull hook reference 
+    handleDispatchAppointment 
+  } = useReceptionistDesk();
   
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split("T")[0]);
   const [selectedPatient, setSelectedPatient] = useState<BookingRecord | null>(null);
   const [activeDoctorTab, setActiveDoctorTab] = useState<string>(""); 
 
-  // 🌟 FIXED: Safe initialization using useEffect to eliminate the infinite loop error
   useEffect(() => {
     if (!activeDoctorTab && doctors && doctors.length > 0) {
       const firstDoctorId = (doctors[0] as any).id || (doctors[0] as any).badge_id;
@@ -27,7 +33,7 @@ export function useDispatchEngine() {
   // Match current doctor profile safely
   const currentDoctor = doctors.find((d: any) => d.id === activeDoctorTab || d.badge_id === activeDoctorTab) 
     || doctors[0] 
-    || { id: "", badge_id: "", name: "", specialty: "", breaks: [] };
+    || { id: "", badge_id: "", name: "", specialty: "", breaks: [], availability_status: "available" };
 
   const targetSpecialty = selectedPatient?.normalized_reason 
     ? SPECIALTY_ROUTING_MAP[selectedPatient.normalized_reason as keyof typeof SPECIALTY_ROUTING_MAP] 
@@ -35,7 +41,6 @@ export function useDispatchEngine() {
     
   const isDepartmentMismatch = targetSpecialty !== null && currentDoctor.specialty !== targetSpecialty;
 
-  // 🌟 FIXED: Added explicit 'BookingRecord' type mapping to 'b' to kill TS7006 implicit any error
   const pendingQueue = bookings.filter((b: BookingRecord) => b.status === "pending" || !b.status);
 
   const getDepartmentMismatchForBooking = (booking: BookingRecord | undefined) => {
@@ -44,11 +49,9 @@ export function useDispatchEngine() {
     return filledDept !== null && currentDoctor.specialty !== filledDept;
   };
 
-const dispatchToSlot = (hour: string) => {
+  const dispatchToSlot = (hour: string) => {
     if (!selectedPatient || isDepartmentMismatch) return;
     
-    // 🌟 MATCHING SCHEMA: Your DB uses text strings like 'doc-1' / 'doc-3'. 
-    // Prioritize badge_id if that holds 'doc-1', otherwise fall back to id.
     const targetDoctorIdentifier = currentDoctor.badge_id || currentDoctor.id || (currentDoctor as any).id;
     
     if (!targetDoctorIdentifier) {
@@ -83,6 +86,7 @@ const dispatchToSlot = (hour: string) => {
     isDepartmentMismatch,
     getDepartmentMismatchForBooking,
     handleStatusUpdate,
+    handleDoctorAvailabilityUpdate, // 🌟 Exposed clean interface proxy to parent layouts
     dispatchToSlot,
     selectedDate,
     setSelectedDate
