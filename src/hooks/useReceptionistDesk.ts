@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
-import { useTable, useUpdate } from "@refinedev/core";
+import { useTable, useUpdate, useList } from "@refinedev/core";
 import { NormalizedReason } from "@/utils/normalization";
 
 export interface BookingRecord {
@@ -23,14 +22,6 @@ export interface Doctor {
   breaks: string[];
 }
 
-export const CLINIC_DOCTORS: Doctor[] = [
-  { id: "doc-1", name: "Dr. Sarah Jenkins", specialty: "Cardiology", breaks: ["12:00"] },
-  { id: "doc-2", name: "Dr. Marcus Vance", specialty: "Neurology", breaks: ["13:00"] },
-  { id: "doc-3", name: "Dr. Elena Rostova", specialty: "General Triage", breaks: ["12:00", "12:30"] },
-  { id: "doc-4", name: "Dr. Arthur Pendelton", specialty: "Orthopedic", breaks: ["15:00"] },
-  // NEW: Pediatrics & Neonatal Care specialist
-  { id: "doc-5", name: "Dr. Maya Lin", specialty: "Pediatrics & Neonatal Care", breaks: ["13:00", "13:30"] }
-];
 export const OPERATIONAL_HOURS = [
   "08:00", "08:30", "09:00", "09:30", "10:00", "10:30", "11:00", "11:30",
   "12:00", "12:30", "13:00", "13:30", "14:00", "14:30", "15:00", "15:30",
@@ -38,23 +29,26 @@ export const OPERATIONAL_HOURS = [
 ];
 
 export function useReceptionistDesk() {
-  const { tableQuery, result } = useTable<BookingRecord>({
+  // 1. Live-fetch bookings from Supabase
+  const { tableQuery } = useTable<BookingRecord>({
     resource: "bookings",
     sorters: { initial: [{ field: "created_at", order: "desc" }] }
   });
 
+  // 2. Live-fetch doctors from Supabase
+  // FIX: Destructure 'result' and 'query' instead of raw 'data' to match your version's signature
+  const { result: doctorsResult, query: doctorsQuery } = useList<Doctor>({
+    resource: "doctors",
+    pagination: { mode: "off" } 
+  });
+
   const { mutate } = useUpdate();
 
-  useEffect(() => {
-    const handleRefresh = () => { tableQuery.refetch(); };
-    window.addEventListener("local-data-update", handleRefresh);
-    return () => { window.removeEventListener("local-data-update", handleRefresh); };
-  }, [tableQuery]);
+  // Pure data streams from the server mapped via your platform wrappers
+  const bookings = tableQuery?.data?.data ?? [];
+  const doctors = doctorsResult?.data ?? [];
+  const isLoading = tableQuery?.isLoading || doctorsQuery?.isLoading;
 
-  const bookings = result?.data ?? [];
-  const isLoading = tableQuery?.isLoading ?? false;
-
-  // 🌟 FIX: Accept date argument and clean up options parameter for refine mutate hook
   const handleDispatchAppointment = (
     id: string, 
     doctorId: string, 
@@ -75,7 +69,6 @@ export function useReceptionistDesk() {
         mutationMode: "optimistic",
       },
       {
-        // 🌟 refine options success hook is defined here in the secondary arg block!
         onSuccess: () => {
           if (onSuccessCallback) onSuccessCallback();
         }
@@ -94,9 +87,9 @@ export function useReceptionistDesk() {
 
   return {
     bookings,
+    doctors, 
     isLoading,
     handleStatusUpdate,
-    // 🌟 Make sure this is explicitly exposed in the return object!
     handleDispatchAppointment 
   };
 }

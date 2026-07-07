@@ -6,11 +6,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { CLINIC_DOCTORS, OPERATIONAL_HOURS, BookingRecord, Doctor } from "@/hooks/useReceptionistDesk";
+import { OPERATIONAL_HOURS, BookingRecord, Doctor } from "@/hooks/useReceptionistDesk";
 import { useDispatchEngine } from "@/hooks/useDispatchEngine";
 import { SPECIALTY_ROUTING_MAP } from "@/utils/normalization";
-import { useRouter } from "next/navigation"; // 🌟 ADDED: Next Router
-import { useLogout } from "@refinedev/core"; // 🌟 ADDED: Refine Logout hook
+import { useRouter } from "next/navigation"; 
+import { useLogout } from "@refinedev/core"; 
 import { 
   ShieldAlert, 
   UserCheck, 
@@ -21,17 +21,18 @@ import {
   ShieldCheck, 
   Users, 
   Calendar,
-  LogOut // 🌟 ADDED: Logout Icon
+  LogOut 
 } from "lucide-react";
 
 export default function ReceptionistSection() {
-  const router = useRouter(); // 🌟 ADDED: Initialize router instance
-  const { mutate: logout } = useLogout(); // 🌟 ADDED: Access logout capability
+  const router = useRouter(); 
+  const { mutate: logout } = useLogout(); 
 
   const {
     isAuthenticated,
     authChecking,
     bookings,
+    doctors, // 🌟 ADDED: Feed dynamic array out from your database stream hook wrapper
     pendingQueue,
     isLoading,
     selectedPatient,
@@ -47,7 +48,6 @@ export default function ReceptionistSection() {
     dispatchToSlot
   } = useDispatchEngine();
 
-  // 🌟 ADDED: Unified logout handler matching the physician portal structure
   const handleEndShift = () => {
     logout(
       {}, 
@@ -82,7 +82,6 @@ export default function ReceptionistSection() {
           <p className="text-xs text-slate-500">Manage incoming clinic patient files and assign schedules to doctors on duty.</p>
         </div>
         
-        {/* 🌟 UPDATED: Multi-action layout cell housing state indicators and the End Shift button */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
           <div className="text-[11px] h-10 font-semibold text-slate-600 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl flex items-center gap-2 justify-center shadow-sm">
             <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" /> Receptionist Session Active
@@ -161,7 +160,7 @@ export default function ReceptionistSection() {
           <div className="space-y-2">
             <span className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block">Available Physicians</span>
             <div className="flex flex-wrap gap-2 bg-slate-50 border border-slate-200/60 p-1.5 rounded-xl">
-              {CLINIC_DOCTORS.map((doc: Doctor) => {
+              {doctors.map((doc: Doctor) => {
                 const isActive = activeDoctorTab === doc.id;
                 const initials = doc.name.split(".").pop()?.trim().charAt(0) || "D";
 
@@ -198,10 +197,9 @@ export default function ReceptionistSection() {
               <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center w-full sm:w-auto">
                 <div>
                   <CardTitle className="text-xs font-bold uppercase text-slate-400 tracking-wider">Physician Daily Schedule</CardTitle>
-                  <CardDescription className="text-xs text-slate-600 mt-0.5">Showing blocks for {currentDoctor.name}</CardDescription>
+                  <CardDescription className="text-xs text-slate-600 mt-0.5">Showing blocks for {currentDoctor?.name || "Staff"}</CardDescription>
                 </div>
                 
-                {/* Date Picker Input Row */}
                 <div className="flex items-center gap-2 bg-white px-2 py-1 rounded-lg border border-slate-200 shadow-sm">
                   <Calendar className="h-3.5 w-3.5 text-slate-400" />
                   <Input 
@@ -213,7 +211,6 @@ export default function ReceptionistSection() {
                 </div>
               </div>
 
-              {/* Security Validation Banner */}
               {selectedPatient && (
                 <div className={`text-[11px] font-semibold px-3 py-1.5 rounded-lg flex items-center gap-2 border shadow-none animate-in fade-in duration-150 w-full sm:w-auto justify-center ${
                   isDepartmentMismatch 
@@ -237,8 +234,8 @@ export default function ReceptionistSection() {
               {/* Mobile View */}
               <div className="block sm:hidden divide-y divide-slate-100">
                 {OPERATIONAL_HOURS.map((hour: string) => {
-                  const isBreak = currentDoctor.breaks.includes(hour);
-                  const filledBooking = bookings.find(b => b.doctorId === currentDoctor.id && b.timeSlot === hour && b.preferredDate === selectedDate && b.status !== "cancelled");
+                  const isBreak = currentDoctor?.breaks?.includes(hour) ?? false;
+                  const filledBooking = bookings.find(b => b.doctorId === currentDoctor?.id && b.timeSlot === hour && b.preferredDate === selectedDate && b.status !== "cancelled");
 
                   return (
                     <div key={hour} className={`p-4 space-y-2 ${isBreak ? "bg-amber-50/20" : filledBooking ? "bg-slate-50/20" : ""}`}>
@@ -294,8 +291,8 @@ export default function ReceptionistSection() {
                 </TableHeader>
                 <TableBody>
                   {OPERATIONAL_HOURS.map((hour: string) => {
-                    const isBreak = currentDoctor.breaks.includes(hour);
-                    const filledBooking = bookings.find(b => b.doctorId === currentDoctor.id && b.timeSlot === hour && b.preferredDate === selectedDate && b.status !== "cancelled");
+                    const isBreak = currentDoctor?.breaks?.includes(hour) ?? false;
+                    const filledBooking = bookings.find(b => b.doctorId === currentDoctor?.id && b.timeSlot === hour && b.preferredDate === selectedDate && b.status !== "cancelled");
 
                     return (
                       <TableRow key={hour} className={`border-b border-slate-100/80 ${isBreak ? "bg-amber-50/10" : filledBooking ? "bg-slate-50/20" : "hover:bg-slate-50/10"}`}>

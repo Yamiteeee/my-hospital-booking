@@ -115,23 +115,37 @@ export function useChatbotTriage() {
       setTimeout(() => {
         setIsTyping(false);
 
-        mutate({
-          resource: "bookings",
-          values: {
-            patient_name: finalData.patient_name,
-            phone: finalData.phone,
-            // Compiles full note info perfectly just like our hero quick-form!
-            reason: `${finalData.reason}. Target Window: ${finalData.preferredDate} @ ${finalData.preferredTime}`, 
-            normalized_reason: calculatedToken,
-            status: "pending",
-            created_at: new Date().toISOString(),
+        mutate(
+          {
+            resource: "bookings",
+            values: {
+              patient_name: finalData.patient_name,
+              phone: finalData.phone,
+              reason: `${finalData.reason}. Target Window: ${finalData.preferredDate} @ ${finalData.preferredTime}`, 
+              normalized_reason: calculatedToken,
+              status: "pending",
+              created_at: new Date().toISOString(),
+            },
           },
-        });
+          {
+            onSuccess: () => {
+              setMessages((prev) => [
+                ...prev,
+                { id: Date.now().toString(), sender: "bot", text: "🎉 Intake Request Complete! Your record is securely locked into our MedVA dashboard queue. A live receptionist will reach out shortly to confirm." }
+              ]);
+            },
+            onError: (err: any) => {
+              console.error("❌ Chatbot submission database rejection:");
+              console.error("Message:", err?.message);
+              console.error("Details:", err?.response?.data || err?.body || err);
 
-        setMessages((prev) => [
-          ...prev,
-          { id: Date.now().toString(), sender: "bot", text: "🎉 Intake Request Complete! Your record is securely locked into our MedVA dashboard queue. A live receptionist will reach out shortly to confirm." }
-        ]);
+              setMessages((prev) => [
+                ...prev,
+                { id: Date.now().toString(), sender: "bot", text: "⚠️ System warning: The intake dashboard rejected this record. Please contact reception directly." }
+              ]);
+            }
+          }
+        );
       }, 2400);
     }
   };

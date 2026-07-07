@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { OPERATIONAL_HOURS, CLINIC_DOCTORS } from "@/hooks/useReceptionistDesk";
+import { OPERATIONAL_HOURS, Doctor } from "@/hooks/useReceptionistDesk";
 import { 
   Clock, 
   Calendar as CalendarIcon, 
@@ -17,15 +17,16 @@ import {
   CheckCircle 
 } from "lucide-react";
 import { useDispatchEngine } from "@/hooks/useDispatchEngine";
-import { useRouter } from "next/navigation"; // 🌟 ADDED: Next Router for reliable layout pushes
+import { useRouter } from "next/navigation"; 
 
 export default function DoctorDashboard() {
-  const router = useRouter(); // 🌟 ADDED: Initialized Next router instance
+  const router = useRouter(); 
   const { data: identity, isLoading: identityLoading } = useGetIdentity<{ id: string; name: string }>();
   const { mutate: logout } = useLogout();
   
   const {
     bookings,
+    doctors, // 🌟 ADDED: Grab live database doctors collection from state orchestrator
     selectedDate,
     setSelectedDate,
     handleStatusUpdate
@@ -37,7 +38,6 @@ export default function DoctorDashboard() {
       {}, 
       {
         onSuccess: () => {
-          // 🌟 FORCE DIRECT ROUTE RE-EVALUATION: Clears any stuck SPA state blocks
           router.push("/login");
           router.refresh();
         },
@@ -60,7 +60,14 @@ export default function DoctorDashboard() {
   }
 
   const activeDoctorId = identity?.id ? identity.id.toLowerCase() : "doc-1";
-  const currentDoctor = CLINIC_DOCTORS.find(d => d.id.toLowerCase() === activeDoctorId) || CLINIC_DOCTORS[0];
+  
+  // 🌟 FIXED: Added explicit explicit type mapping & searched the database collection instead of mock data
+  const currentDoctor = doctors.find((d: Doctor) => d.id.toLowerCase() === activeDoctorId) || doctors[0] || {
+    id: activeDoctorId,
+    name: identity?.name || "Physician Staff",
+    specialty: "General Clinic",
+    breaks: []
+  };
 
   const dailyAppointments = bookings.filter(
     (b) => b.doctorId?.toLowerCase() === activeDoctorId && b.preferredDate === selectedDate && b.status !== "cancelled"
@@ -105,7 +112,7 @@ export default function DoctorDashboard() {
           <Button
             size="sm"
             variant="ghost"
-            onClick={handleEndShift} // 🌟 UPDATED: Uses deterministic end shift workflow handler
+            onClick={handleEndShift} 
             className="h-10 border border-slate-200 rounded-xl px-3 bg-white text-slate-500 hover:text-rose-600 text-xs font-semibold shadow-sm transition-all"
           >
             <LogOut className="h-4 w-4" />
@@ -140,7 +147,7 @@ export default function DoctorDashboard() {
               <div className="flex justify-between items-center">
                 <span className="text-xs text-slate-500 font-medium">Scheduled Breaks</span>
                 <div className="flex items-center gap-1 text-amber-700 font-semibold text-xs">
-                  <Coffee className="h-3.5 w-3.5 text-amber-500" /> {currentDoctor.breaks.length} Blocks
+                  <Coffee className="h-3.5 w-3.5 text-amber-500" /> {currentDoctor.breaks?.length || 0} Blocks
                 </div>
               </div>
             </CardContent>
@@ -154,7 +161,7 @@ export default function DoctorDashboard() {
           <Card className="border-slate-200 shadow-sm rounded-xl overflow-hidden bg-white">
             <CardContent className="p-0 divide-y divide-slate-100">
               {OPERATIONAL_HOURS.map((hour) => {
-                const isBreak = currentDoctor.breaks.includes(hour);
+                const isBreak = currentDoctor.breaks?.includes(hour) ?? false;
                 const appointment = dailyAppointments.find(b => b.timeSlot === hour);
 
                 return (

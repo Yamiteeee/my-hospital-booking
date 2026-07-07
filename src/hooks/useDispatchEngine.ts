@@ -1,19 +1,20 @@
 import { useState } from "react";
 import { useIsAuthenticated } from "@refinedev/core";
-import { useReceptionistDesk, CLINIC_DOCTORS, BookingRecord } from "@/hooks/useReceptionistDesk";
+import { useReceptionistDesk, BookingRecord, Doctor } from "@/hooks/useReceptionistDesk";
 import { SPECIALTY_ROUTING_MAP } from "@/utils/normalization";
 
 export function useDispatchEngine() {
   const { data: authStatus, isPending: authChecking } = useIsAuthenticated();
   
-  // 🌟 Now safely pulling the handler exposed by useReceptionistDesk
-  const { bookings, isLoading, handleStatusUpdate, handleDispatchAppointment } = useReceptionistDesk();
+  // Pull dynamic doctors list right out of the hook!
+  const { bookings, doctors, isLoading, handleStatusUpdate, handleDispatchAppointment } = useReceptionistDesk();
   
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split("T")[0]);
   const [selectedPatient, setSelectedPatient] = useState<BookingRecord | null>(null);
-  const [activeDoctorTab, setActiveDoctorTab] = useState<string>(CLINIC_DOCTORS[0].id);
+  const [activeDoctorTab, setActiveDoctorTab] = useState<string>("doc-1"); // Set a string default safely
 
-  const currentDoctor = CLINIC_DOCTORS.find(d => d.id === activeDoctorTab) || CLINIC_DOCTORS[0];
+  // Safe fallback search logic so TypeScript remains happy with explicitly defined types
+  const currentDoctor = doctors.find((d: Doctor) => d.id === activeDoctorTab) || doctors[0] || { id: "", name: "", specialty: "", breaks: [] };
 
   const targetSpecialty = selectedPatient?.normalized_reason 
     ? SPECIALTY_ROUTING_MAP[selectedPatient.normalized_reason] 
@@ -21,7 +22,6 @@ export function useDispatchEngine() {
     
   const isDepartmentMismatch = targetSpecialty !== null && currentDoctor.specialty !== targetSpecialty;
 
-  // Pending queue filtering
   const pendingQueue = bookings.filter(b => b.status === "pending" || !b.status);
 
   const getDepartmentMismatchForBooking = (booking: BookingRecord | undefined) => {
@@ -33,7 +33,6 @@ export function useDispatchEngine() {
   const dispatchToSlot = (hour: string) => {
     if (!selectedPatient || isDepartmentMismatch) return;
     
-    // We pass our clean closure callback as the 5th parameter down to the hook runner
     handleDispatchAppointment(
       selectedPatient.id, 
       currentDoctor.id, 
@@ -49,6 +48,7 @@ export function useDispatchEngine() {
     isAuthenticated: authStatus?.authenticated ?? false,
     authChecking,
     bookings,
+    doctors, // Expose doctors down to UI layout components!
     pendingQueue,
     isLoading,
     selectedPatient,
