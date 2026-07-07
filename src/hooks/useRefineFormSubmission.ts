@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useCreate, useList } from "@refinedev/core";
 import { normalizeIncomingReason } from "@/utils/normalization";
 import { BookingFormData, Doctor } from "@/types";
@@ -25,17 +25,12 @@ export function useRefineFormSubmission() {
 
   const rawDoctorsList = result?.data || [];
 
-  // 🌟 EXTRACTION: Bulletproof lookup checking for variations in keys and nested payloads
   const uniqueSpecialties = Array.from(
     new Set(
       rawDoctorsList
         .map((doc: any) => {
           if (!doc) return null;
-          
-          // Fallback sequence looking for 'specialty' or 'Specialty'
           const value = doc.specialty || doc.Specialty || "";
-          
-          // Trim whitespace (fixes things like ' Pediatrics & Neonatal Care')
           return typeof value === "string" ? value.trim() : null;
         })
         .filter((specialty): specialty is string => !!specialty)
@@ -47,7 +42,9 @@ export function useRefineFormSubmission() {
 
   const handleBookingSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!formData.patient_name || !formData.department || !formData.preferredDate || !formData.preferredTime) return;
+    
+    // 🌟 UPDATED: Ensure submission is blocked if phone value isn't supplied
+    if (!formData.patient_name || !formData.phone || !formData.department || !formData.preferredDate || !formData.preferredTime) return;
 
     const calculatedToken = normalizeIncomingReason(formData.department);
 
@@ -56,7 +53,7 @@ export function useRefineFormSubmission() {
         resource: "bookings",
         values: {
           patient_name: formData.patient_name,
-          phone: formData.phone || "N/A (Web Portal Intake)",
+          phone: formData.phone.trim(), // 🌟 FIXED: Passes the user input phone value directly to Supabase
           reason: `Department Target: ${formData.department}. Urgency level: ${formData.urgency}. Target Window: ${formData.preferredDate} @ ${formData.preferredTime}`,
           normalized_reason: calculatedToken, 
           status: "pending",
