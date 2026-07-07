@@ -1,12 +1,12 @@
 "use client";
 
 import React from "react";
-import { useGetIdentity, useLogout } from "@refinedev/core"; 
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { OPERATIONAL_HOURS, Doctor } from "@/hooks/useReceptionistDesk";
+import { OPERATIONAL_HOURS } from "@/hooks/useReceptionistDesk";
+import { useDoctor } from "@/hooks/useDoctor"; // 🌟 Imported your new hook!
 import { 
   Clock, 
   Calendar as CalendarIcon, 
@@ -16,38 +16,18 @@ import {
   FileText,
   CheckCircle 
 } from "lucide-react";
-import { useDispatchEngine } from "@/hooks/useDispatchEngine";
-import { useRouter } from "next/navigation"; 
 
 export default function DoctorDashboard() {
-  const router = useRouter(); 
-  const { data: identity, isLoading: identityLoading } = useGetIdentity<{ id: string; name: string }>();
-  const { mutate: logout } = useLogout();
-  
   const {
-    bookings,
-    doctors, // 🌟 ADDED: Grab live database doctors collection from state orchestrator
+    identity,
+    identityLoading,
     selectedDate,
     setSelectedDate,
-    handleStatusUpdate
-  } = useDispatchEngine();
-
-  // Handle shift end with a deterministic navigation sequence
-  const handleEndShift = () => {
-    logout(
-      {}, 
-      {
-        onSuccess: () => {
-          router.push("/login");
-          router.refresh();
-        },
-        onError: (err) => {
-          console.warn("Soft logout redirect fallback triggered.", err);
-          router.push("/login");
-        }
-      }
-    );
-  };
+    currentDoctor,
+    dailyAppointments,
+    handleEndShift,
+    handleStatusUpdate,
+  } = useDoctor();
 
   if (identityLoading) {
     return (
@@ -58,20 +38,6 @@ export default function DoctorDashboard() {
       </div>
     );
   }
-
-  const activeDoctorId = identity?.id ? identity.id.toLowerCase() : "doc-1";
-  
-  // 🌟 FIXED: Added explicit explicit type mapping & searched the database collection instead of mock data
-  const currentDoctor = doctors.find((d: Doctor) => d.id.toLowerCase() === activeDoctorId) || doctors[0] || {
-    id: activeDoctorId,
-    name: identity?.name || "Physician Staff",
-    specialty: "General Clinic",
-    breaks: []
-  };
-
-  const dailyAppointments = bookings.filter(
-    (b) => b.doctorId?.toLowerCase() === activeDoctorId && b.preferredDate === selectedDate && b.status !== "cancelled"
-  );
 
   return (
     <div className="p-4 sm:p-8 max-w-6xl mx-auto space-y-6 sm:space-y-8 animate-in fade-in duration-200">
@@ -84,7 +50,7 @@ export default function DoctorDashboard() {
               Physician Portal Active
             </span>
             <span className="text-[10px] font-mono text-slate-400 uppercase">
-              ID: {identity?.id || "UNVERIFIED"}
+              Badge: {identity?.badge_id || identity?.id || "UNVERIFIED"}
             </span>
           </div>
           <h1 className="text-xl font-bold text-slate-900 tracking-tight mt-2">
@@ -97,7 +63,6 @@ export default function DoctorDashboard() {
 
         {/* Action Controls Side Container */}
         <div className="flex items-center gap-3 self-stretch sm:self-auto justify-end">
-          {/* Date Selector Frame */}
           <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-slate-200 shadow-sm">
             <CalendarIcon className="h-4 w-4 text-slate-400" />
             <Input 
@@ -108,7 +73,6 @@ export default function DoctorDashboard() {
             />
           </div>
 
-          {/* Operational Sign Out Trigger Button */}
           <Button
             size="sm"
             variant="ghost"
@@ -154,14 +118,14 @@ export default function DoctorDashboard() {
           </Card>
         </div>
 
-        {/* RIGHT COLUMN: THE GOOGLE CALENDAR LADDER TIMEGRID */}
+        {/* RIGHT COLUMN: THE CALENDAR LADDER TIMEGRID */}
         <div className="lg:col-span-2 space-y-3">
           <h3 className="text-xs font-bold uppercase text-slate-400 tracking-wider">Your Personal Agenda</h3>
           
           <Card className="border-slate-200 shadow-sm rounded-xl overflow-hidden bg-white">
             <CardContent className="p-0 divide-y divide-slate-100">
               {OPERATIONAL_HOURS.map((hour) => {
-                const isBreak = currentDoctor.breaks?.includes(hour) ?? false;
+                const isBreak = (currentDoctor.breaks as string[])?.includes(hour) ?? false;
                 const appointment = dailyAppointments.find(b => b.timeSlot === hour);
 
                 return (

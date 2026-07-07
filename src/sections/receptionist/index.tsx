@@ -32,7 +32,7 @@ export default function ReceptionistSection() {
     isAuthenticated,
     authChecking,
     bookings,
-    doctors, // 🌟 ADDED: Feed dynamic array out from your database stream hook wrapper
+    doctors,
     pendingQueue,
     isLoading,
     selectedPatient,
@@ -160,14 +160,16 @@ export default function ReceptionistSection() {
           <div className="space-y-2">
             <span className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block">Available Physicians</span>
             <div className="flex flex-wrap gap-2 bg-slate-50 border border-slate-200/60 p-1.5 rounded-xl">
-              {doctors.map((doc: Doctor) => {
-                const isActive = activeDoctorTab === doc.id;
-                const initials = doc.name.split(".").pop()?.trim().charAt(0) || "D";
+           {doctors.map((doc: Doctor) => {
+            const isActive = activeDoctorTab === doc.badge_id;
+            
+            // 🌟 FIXED: Added optional chaining and a fallback string to prevent "undefined" split crashes
+            const initials = doc.name?.split(".").pop()?.trim().charAt(0) || "D";
 
-                return (
-                  <button
-                    key={doc.id}
-                    onClick={() => setActiveDoctorTab(doc.id)}
+            return (
+                            <button
+                    key={doc.badge_id} // 🌟 FIXED: Use badge_id as key
+                    onClick={() => setActiveDoctorTab(doc.badge_id)} // 🌟 FIXED: Pass badge_id
                     className={`px-3 py-2 text-xs font-semibold rounded-lg transition-all flex items-center gap-3 border grow sm:grow-0 ${
                       isActive 
                         ? "bg-white text-slate-900 shadow-sm border-slate-200" 
@@ -235,7 +237,8 @@ export default function ReceptionistSection() {
               <div className="block sm:hidden divide-y divide-slate-100">
                 {OPERATIONAL_HOURS.map((hour: string) => {
                   const isBreak = currentDoctor?.breaks?.includes(hour) ?? false;
-                  const filledBooking = bookings.find(b => b.doctorId === currentDoctor?.id && b.timeSlot === hour && b.preferredDate === selectedDate && b.status !== "cancelled");
+                  // 🌟 FIXED: Cross-referenced against currentDoctor.badge_id
+                  const filledBooking = bookings.find(b => (b.badge_id || b.doctorId) === currentDoctor?.badge_id && b.timeSlot === hour && b.preferredDate === selectedDate && b.status !== "cancelled");
 
                   return (
                     <div key={hour} className={`p-4 space-y-2 ${isBreak ? "bg-amber-50/20" : filledBooking ? "bg-slate-50/20" : ""}`}>
@@ -292,7 +295,8 @@ export default function ReceptionistSection() {
                 <TableBody>
                   {OPERATIONAL_HOURS.map((hour: string) => {
                     const isBreak = currentDoctor?.breaks?.includes(hour) ?? false;
-                    const filledBooking = bookings.find(b => b.doctorId === currentDoctor?.id && b.timeSlot === hour && b.preferredDate === selectedDate && b.status !== "cancelled");
+                    // 🌟 FIXED: Cross-referenced against currentDoctor.badge_id
+                    const filledBooking = bookings.find(b => (b.badge_id || b.doctorId) === currentDoctor?.badge_id && b.timeSlot === hour && b.preferredDate === selectedDate && b.status !== "cancelled");
 
                     return (
                       <TableRow key={hour} className={`border-b border-slate-100/80 ${isBreak ? "bg-amber-50/10" : filledBooking ? "bg-slate-50/20" : "hover:bg-slate-50/10"}`}>

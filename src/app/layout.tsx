@@ -14,8 +14,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body className="antialiased min-h-screen flex flex-col bg-slate-50">
+    // 🌟 FIXED: Added suppressHydrationWarning here...
+    <html lang="en" suppressHydrationWarning>
+      {/* 🌟 FIXED: ...and here to block browser extensions from throwing console crashes */}
+      <body className="antialiased min-h-screen flex flex-col bg-slate-50" suppressHydrationWarning>
         <SmoothScrollProvider>
           {/* Wrap children globally so every route has access to Refine database hooks */}
           <RefineGlobalProvider>

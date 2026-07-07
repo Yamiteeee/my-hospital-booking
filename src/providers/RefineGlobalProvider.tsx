@@ -19,8 +19,8 @@ console.log("Searching database for badge_id matching:", companyId.trim());
 
 const { data: profile, error } = await supabaseClient
   .from("profiles")
-  .select("id, role, name, badge_id")
-  .ilike("badge_id", companyId.trim()) // 🌟 Swapped .eq for .ilike
+  .select("badge_id, role, name") // 🌟 Changed 'id' to 'badge_id'
+  .ilike("badge_id", companyId.trim())
   .maybeSingle();
 
 console.log("Database Response Data:", profile);

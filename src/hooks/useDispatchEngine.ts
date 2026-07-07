@@ -11,10 +11,10 @@ export function useDispatchEngine() {
   
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split("T")[0]);
   const [selectedPatient, setSelectedPatient] = useState<BookingRecord | null>(null);
-  const [activeDoctorTab, setActiveDoctorTab] = useState<string>("doc-1"); // Set a string default safely
+  const [activeDoctorTab, setActiveDoctorTab] = useState<string>("DOC-1"); // 🌟 UPDATED: Set string default to badge style
 
-  // Safe fallback search logic so TypeScript remains happy with explicitly defined types
-  const currentDoctor = doctors.find((d: Doctor) => d.id === activeDoctorTab) || doctors[0] || { id: "", name: "", specialty: "", breaks: [] };
+  // 🌟 FIXED: Changed 'd.id' to 'd.badge_id' and updated the safe fallback template object
+  const currentDoctor = doctors.find((d: Doctor) => d.badge_id === activeDoctorTab) || doctors[0] || { badge_id: "", name: "", specialty: "", breaks: [] };
 
   const targetSpecialty = selectedPatient?.normalized_reason 
     ? SPECIALTY_ROUTING_MAP[selectedPatient.normalized_reason] 
@@ -33,9 +33,10 @@ export function useDispatchEngine() {
   const dispatchToSlot = (hour: string) => {
     if (!selectedPatient || isDepartmentMismatch) return;
     
+    // 🌟 FIXED: Changed 'currentDoctor.id' to 'currentDoctor.badge_id' to pass correct string type
     handleDispatchAppointment(
       selectedPatient.id, 
-      currentDoctor.id, 
+      currentDoctor.badge_id, 
       hour, 
       selectedDate,
       () => {

@@ -10,13 +10,14 @@ export interface BookingRecord {
   reason: string;
   normalized_reason?: NormalizedReason;
   status: "pending" | "confirmed" | "cancelled" | "checked-in";
-  doctorId: string | null;
+  doctorId: string | null;   // Stays for frontend backwards compatibility 
+  badge_id: string | null;   // 🌟 ADDED: Relates directly to your new database structural primary key
   timeSlot: string | null;
   preferredDate?: string;
 }
 
 export interface Doctor {
-  id: string;
+  badge_id: string; // 🌟 CHANGED: Replaced 'id' with your custom string 'badge_id' (e.g. 'DOC-1')
   name: string;
   specialty: string;
   breaks: string[];
@@ -36,7 +37,6 @@ export function useReceptionistDesk() {
   });
 
   // 2. Live-fetch doctors from Supabase
-  // FIX: Destructure 'result' and 'query' instead of raw 'data' to match your version's signature
   const { result: doctorsResult, query: doctorsQuery } = useList<Doctor>({
     resource: "doctors",
     pagination: { mode: "off" } 
@@ -51,7 +51,7 @@ export function useReceptionistDesk() {
 
   const handleDispatchAppointment = (
     id: string, 
-    doctorId: string, 
+    doctorBadgeId: string, // 🌟 UPDATED: Expecting 'DOC-1' style badge strings
     timeSlot: string, 
     preferredDate: string,
     onSuccessCallback?: () => void
@@ -62,7 +62,8 @@ export function useReceptionistDesk() {
         id: id,
         values: { 
           status: "confirmed",
-          doctorId: doctorId,
+          badge_id: doctorBadgeId, // 🌟 UPDATED: Sends to your updated database relationship key
+          doctorId: doctorBadgeId, // Keeps fallback populated if your table still queries both
           timeSlot: timeSlot,
           preferredDate: preferredDate
         },
