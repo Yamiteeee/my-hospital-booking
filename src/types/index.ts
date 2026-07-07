@@ -8,6 +8,7 @@ export interface BookingFormData {
   preferredDate: string;
   preferredTime: string;
   urgency: string;
+  doctorId?: string; // 🌟 FIXED: Added this so your form components can look up doctor selections safely!
 }
 
 export interface Patient {
@@ -28,10 +29,14 @@ export interface Booking {
 }
 
 export interface Doctor {
-  id: string;
-  name: string;
+ id: string;
+  badge_id?: string; // 🌟 Support both column naming conventions safely
+  name?: string;
   specialty: string;
   breaks: string[];
+  profiles?: {
+    name: string;
+  };
 }
 
 // --- Component Prop Types ---

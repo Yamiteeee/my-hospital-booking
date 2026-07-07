@@ -10,14 +10,15 @@ export interface BookingRecord {
   reason: string;
   normalized_reason?: NormalizedReason;
   status: "pending" | "confirmed" | "cancelled" | "checked-in";
-  doctorId: string | null;   // Stays for frontend backwards compatibility 
-  badge_id: string | null;   // 🌟 ADDED: Relates directly to your new database structural primary key
+  doctorId: string | null;   // Frontend backward compatibility reference
+  badge_id: string | null;   // Maps directly to database relational configurations
   timeSlot: string | null;
   preferredDate?: string;
 }
 
 export interface Doctor {
-  badge_id: string; // 🌟 CHANGED: Replaced 'id' with your custom string 'badge_id' (e.g. 'DOC-1')
+  id: string;
+  badge_id: string; // Relates to alphanumeric structural identifiers (e.g. 'doc-1')
   name: string;
   specialty: string;
   breaks: string[];
@@ -35,8 +36,7 @@ export function useReceptionistDesk() {
     resource: "bookings",
     sorters: { initial: [{ field: "created_at", order: "desc" }] }
   });
-
-  // 2. Live-fetch doctors from Supabase
+// 2. Live-fetch doctors from Supabase (Destructured using your version's properties)
   const { result: doctorsResult, query: doctorsQuery } = useList<Doctor>({
     resource: "doctors",
     pagination: { mode: "off" } 
@@ -46,12 +46,14 @@ export function useReceptionistDesk() {
 
   // Pure data streams from the server mapped via your platform wrappers
   const bookings = tableQuery?.data?.data ?? [];
+  
+  // 🌟 FIXED: Pulling data out of 'result' and loading state out of 'query'
   const doctors = doctorsResult?.data ?? [];
   const isLoading = tableQuery?.isLoading || doctorsQuery?.isLoading;
 
-  const handleDispatchAppointment = (
+const handleDispatchAppointment = (
     id: string, 
-    doctorBadgeId: string, // 🌟 UPDATED: Expecting 'DOC-1' style badge strings
+    doctorBadgeId: string, // Holds the string value like 'doc-1'
     timeSlot: string, 
     preferredDate: string,
     onSuccessCallback?: () => void
@@ -62,16 +64,19 @@ export function useReceptionistDesk() {
         id: id,
         values: { 
           status: "confirmed",
-          badge_id: doctorBadgeId, // 🌟 UPDATED: Sends to your updated database relationship key
-          doctorId: doctorBadgeId, // Keeps fallback populated if your table still queries both
-          timeSlot: timeSlot,
-          preferredDate: preferredDate
+          doctorId: doctorBadgeId, // 🌟 FIXED: Maps directly to your 'doctorId' column string (e.g. 'doc-1')
+          timeSlot: timeSlot,      // Maps to camelCase 'timeSlot'
+          preferredDate: preferredDate // Maps to camelCase 'preferredDate'
+          // ❌ REMOVED badge_id since it doesn't exist in your bookings table schema
         },
         mutationMode: "optimistic",
       },
       {
         onSuccess: () => {
           if (onSuccessCallback) onSuccessCallback();
+        },
+        onError: (error) => {
+          console.error("Critical dispatch error caught during transaction payload sync:", error);
         }
       }
     );

@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import { useCreate } from "@refinedev/core";
+import { useState, useEffect } from "react";
+import { useCreate, useList } from "@refinedev/core";
 import { normalizeIncomingReason } from "@/utils/normalization";
-import { BookingFormData } from "@/types";
+import { BookingFormData, Doctor } from "@/types";
 
 export function useRefineFormSubmission() {
   const [showQuickBook, setShowQuickBook] = useState(false);
@@ -18,10 +18,34 @@ export function useRefineFormSubmission() {
     preferredTime: ""
   });
 
-  const { mutate, mutation } = useCreate();
-  const isLoading = mutation.isPending;
+  const { result, query } = useList<Doctor>({
+    resource: "doctors",
+    pagination: { mode: "off" }
+  });
 
-  const handleBookingSubmit = (e: React.FormEvent) => {
+  const rawDoctorsList = result?.data || [];
+
+  // 🌟 EXTRACTION: Bulletproof lookup checking for variations in keys and nested payloads
+  const uniqueSpecialties = Array.from(
+    new Set(
+      rawDoctorsList
+        .map((doc: any) => {
+          if (!doc) return null;
+          
+          // Fallback sequence looking for 'specialty' or 'Specialty'
+          const value = doc.specialty || doc.Specialty || "";
+          
+          // Trim whitespace (fixes things like ' Pediatrics & Neonatal Care')
+          return typeof value === "string" ? value.trim() : null;
+        })
+        .filter((specialty): specialty is string => !!specialty)
+    )
+  ).sort();
+
+  const { mutate, mutation } = useCreate();
+  const isLoading = mutation.isPending || query.isLoading;
+
+  const handleBookingSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!formData.patient_name || !formData.department || !formData.preferredDate || !formData.preferredTime) return;
 
@@ -44,10 +68,7 @@ export function useRefineFormSubmission() {
           setBookingStep("success");
         },
         onError: (err: any) => {
-          // Expose the deep structure of the database / API response error
-          console.error("❌ Refine booking submit failed!");
-          console.error("Message:", err?.message);
-          console.error("Details:", err?.response?.data || err?.body || err);
+          console.error("❌ Refine booking submit failed!", err?.message);
         }
       }
     );
@@ -74,6 +95,7 @@ export function useRefineFormSubmission() {
     setFormData,
     isLoading, 
     handleBookingSubmit,
-    resetBookingForm
+    resetBookingForm,
+    specialties: uniqueSpecialties
   };
 }

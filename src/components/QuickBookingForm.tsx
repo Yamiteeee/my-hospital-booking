@@ -3,10 +3,8 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { Stethoscope, CheckCircle2 } from "lucide-react";
-import { UNIQUE_DEPARTMENTS } from "@/providers/data-providers/landingData";
 import { QuickBookingFormProps } from "@/types";
 
-// Standard operational hour slots for dropdown matching the receptionist grid
 const FORM_TIME_SLOTS = [
   "09:00 AM",
   "10:00 AM",
@@ -17,6 +15,10 @@ const FORM_TIME_SLOTS = [
   "04:00 PM"
 ];
 
+interface DynamicQuickBookingFormProps extends QuickBookingFormProps {
+  specialties?: string[];
+}
+
 export function QuickBookingForm({
   showQuickBook,
   bookingStep,
@@ -26,7 +28,8 @@ export function QuickBookingForm({
   handleBookingSubmit,
   resetBookingForm,
   selectId,
-}: QuickBookingFormProps) {
+  specialties = [], 
+}: DynamicQuickBookingFormProps) {
   if (!showQuickBook) return null;
 
   return (
@@ -51,22 +54,26 @@ export function QuickBookingForm({
                 className="w-full text-xs font-medium bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 outline-none focus:border-blue-500 text-slate-800 transition-colors duration-150"
               />
             </div>
-
-            <div className="space-y-1">
-              <label htmlFor={selectId} className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Target Specialty Wing</label>
-              <select 
-                id={selectId}
-                required
-                value={formData.department}
-                onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-                className="w-full text-xs font-medium bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 outline-none focus:border-blue-500 text-slate-800 transition-colors duration-150"
-              >
-                <option value="">Select Wing...</option>
-                {UNIQUE_DEPARTMENTS.map((d) => (
-                  <option key={d.id} value={d.id}>{d.name}</option>
-                ))}
-              </select>
-            </div>
+          {/* 🌟 FULLY EXPLICIT WINGS DROPDOWN */}
+          <div className="space-y-1">
+            <label htmlFor={selectId} className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Target Specialty Wing</label>
+            <select 
+              id={selectId}
+              required
+              value={formData.department}
+              onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+              className="w-full text-xs font-medium bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 outline-none focus:border-blue-500 text-slate-800 transition-colors duration-150"
+            >
+              <option value="">
+                {(!specialties || specialties.length === 0) ? "Loading Wings..." : "Select Wing..."}
+              </option>
+              {specialties && specialties.map((specialty) => (
+                <option key={specialty} value={specialty}>
+                  {specialty}
+                </option>
+              ))}
+            </select>
+          </div>
 
             <div className="space-y-1">
               <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Requested Date</label>
@@ -79,7 +86,6 @@ export function QuickBookingForm({
               />
             </div>
 
-            {/* NEW FEATURE: AVAILABLE TIME FIELD */}
             <div className="space-y-1">
               <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Preferred Time Window</label>
               <select 

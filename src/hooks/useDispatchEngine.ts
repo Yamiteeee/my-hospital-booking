@@ -1,42 +1,64 @@
-import { useState } from "react";
+"use client";
+
+import { useState, useEffect } from "react";
 import { useIsAuthenticated } from "@refinedev/core";
-import { useReceptionistDesk, BookingRecord, Doctor } from "@/hooks/useReceptionistDesk";
+import { useReceptionistDesk, BookingRecord } from "@/hooks/useReceptionistDesk";
 import { SPECIALTY_ROUTING_MAP } from "@/utils/normalization";
 
 export function useDispatchEngine() {
   const { data: authStatus, isPending: authChecking } = useIsAuthenticated();
   
-  // Pull dynamic doctors list right out of the hook!
   const { bookings, doctors, isLoading, handleStatusUpdate, handleDispatchAppointment } = useReceptionistDesk();
   
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split("T")[0]);
   const [selectedPatient, setSelectedPatient] = useState<BookingRecord | null>(null);
-  const [activeDoctorTab, setActiveDoctorTab] = useState<string>("DOC-1"); // 🌟 UPDATED: Set string default to badge style
+  const [activeDoctorTab, setActiveDoctorTab] = useState<string>(""); 
 
-  // 🌟 FIXED: Changed 'd.id' to 'd.badge_id' and updated the safe fallback template object
-  const currentDoctor = doctors.find((d: Doctor) => d.badge_id === activeDoctorTab) || doctors[0] || { badge_id: "", name: "", specialty: "", breaks: [] };
+  // 🌟 FIXED: Safe initialization using useEffect to eliminate the infinite loop error
+  useEffect(() => {
+    if (!activeDoctorTab && doctors && doctors.length > 0) {
+      const firstDoctorId = (doctors[0] as any).id || (doctors[0] as any).badge_id;
+      if (firstDoctorId) {
+        setActiveDoctorTab(firstDoctorId);
+      }
+    }
+  }, [doctors, activeDoctorTab]);
+
+  // Match current doctor profile safely
+  const currentDoctor = doctors.find((d: any) => d.id === activeDoctorTab || d.badge_id === activeDoctorTab) 
+    || doctors[0] 
+    || { id: "", badge_id: "", name: "", specialty: "", breaks: [] };
 
   const targetSpecialty = selectedPatient?.normalized_reason 
-    ? SPECIALTY_ROUTING_MAP[selectedPatient.normalized_reason] 
+    ? SPECIALTY_ROUTING_MAP[selectedPatient.normalized_reason as keyof typeof SPECIALTY_ROUTING_MAP] 
     : null;
     
   const isDepartmentMismatch = targetSpecialty !== null && currentDoctor.specialty !== targetSpecialty;
 
-  const pendingQueue = bookings.filter(b => b.status === "pending" || !b.status);
+  // 🌟 FIXED: Added explicit 'BookingRecord' type mapping to 'b' to kill TS7006 implicit any error
+  const pendingQueue = bookings.filter((b: BookingRecord) => b.status === "pending" || !b.status);
 
   const getDepartmentMismatchForBooking = (booking: BookingRecord | undefined) => {
     if (!booking?.normalized_reason) return null;
-    const filledDept = SPECIALTY_ROUTING_MAP[booking.normalized_reason];
+    const filledDept = SPECIALTY_ROUTING_MAP[booking.normalized_reason as keyof typeof SPECIALTY_ROUTING_MAP];
     return filledDept !== null && currentDoctor.specialty !== filledDept;
   };
 
-  const dispatchToSlot = (hour: string) => {
+const dispatchToSlot = (hour: string) => {
     if (!selectedPatient || isDepartmentMismatch) return;
     
-    // 🌟 FIXED: Changed 'currentDoctor.id' to 'currentDoctor.badge_id' to pass correct string type
+    // 🌟 MATCHING SCHEMA: Your DB uses text strings like 'doc-1' / 'doc-3'. 
+    // Prioritize badge_id if that holds 'doc-1', otherwise fall back to id.
+    const targetDoctorIdentifier = currentDoctor.badge_id || currentDoctor.id || (currentDoctor as any).id;
+    
+    if (!targetDoctorIdentifier) {
+      console.error("Critical: Could not resolve a valid doctor identifier string.");
+      return;
+    }
+    
     handleDispatchAppointment(
       selectedPatient.id, 
-      currentDoctor.badge_id, 
+      targetDoctorIdentifier, 
       hour, 
       selectedDate,
       () => {
@@ -49,12 +71,12 @@ export function useDispatchEngine() {
     isAuthenticated: authStatus?.authenticated ?? false,
     authChecking,
     bookings,
-    doctors, // Expose doctors down to UI layout components!
+    doctors, 
     pendingQueue,
     isLoading,
     selectedPatient,
     setSelectedPatient,
-    activeDoctorTab,
+    activeDoctorTab, 
     setActiveDoctorTab,
     currentDoctor,
     targetSpecialty,

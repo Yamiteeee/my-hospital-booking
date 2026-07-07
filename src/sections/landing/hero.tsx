@@ -8,7 +8,7 @@ import { HospitalImages } from "@/providers/image-provider";
 import { TELEMETRY_METRICS } from "@/providers/data-providers/landingData";
 import { useAnimatedCounter } from "@/hooks/useAnimatedCounter";
 import { useRefineFormSubmission } from "@/hooks/useRefineFormSubmission";
-import { QuickBookingForm } from "@/components/QuickBookingForm"; // <-- Adjust path accordingly
+import { QuickBookingForm } from "@/components/QuickBookingForm";
 
 function TelemetryItem({ target, suffix, label }: { target: number; suffix: string; label: string }) {
   const animatedValue = useAnimatedCounter({ target });
@@ -33,6 +33,7 @@ export interface LandingHeroRef {
 export const LandingHero = forwardRef<LandingHeroRef, LandingHeroProps>(({ onBookNow }, ref) => {
   const selectId = useId();
   
+  // 🌟 FIXED: Destructured 'specialties' from your hook bundle here
   const {
     showQuickBook,
     setShowQuickBook,
@@ -41,7 +42,8 @@ export const LandingHero = forwardRef<LandingHeroRef, LandingHeroProps>(({ onBoo
     setFormData,
     isLoading,
     handleBookingSubmit,
-    resetBookingForm
+    resetBookingForm,
+    specialties // <-- Gathered from database rows
   } = useRefineFormSubmission();
 
   useImperativeHandle(ref, () => ({
@@ -104,6 +106,7 @@ export const LandingHero = forwardRef<LandingHeroRef, LandingHeroProps>(({ onBoo
             handleBookingSubmit={handleBookingSubmit}
             resetBookingForm={resetBookingForm}
             selectId={selectId}
+            specialties={specialties} // 🌟 FIXED: Explicitly passing down the dynamic data here!
           />
         </div>
 
