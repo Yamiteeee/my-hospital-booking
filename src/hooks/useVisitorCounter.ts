@@ -8,7 +8,8 @@ export function useVisitorCounter() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!supabaseClient) {
+    // 🛡️ BUILD PROTECTION: Prevent execution on Vercel's build servers
+    if (typeof window === "undefined" || !supabaseClient) {
       setLoading(false);
       return;
     }
@@ -37,8 +38,7 @@ export function useVisitorCounter() {
 
     async function fallbackFetchAndSeed() {
       try {
-        // Try fetching the row
-        const { data, error } = await supabaseClient
+        const { data } = await supabaseClient
           .from("site_metrics")
           .select("count")
           .eq("id", "total_visitors")
@@ -47,7 +47,6 @@ export function useVisitorCounter() {
         if (data) {
           setVisitorNumber(Number(data.count));
         } else {
-          // 🛠️ SELF-HEALING: If the row doesn't exist, seed it with visitor #1 right now!
           const { data: newData } = await supabaseClient
             .from("site_metrics")
             .insert([{ id: "total_visitors", count: 1 }])
@@ -57,7 +56,7 @@ export function useVisitorCounter() {
           setVisitorNumber(newData ? Number(newData.count) : 1);
         }
       } catch (e) {
-        setVisitorNumber(1); // Hard fallback so the UI never freezes
+        setVisitorNumber(1);
       } finally {
         setLoading(false);
       }
