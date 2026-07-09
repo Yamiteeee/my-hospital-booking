@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { useVisitorCounter } from "@/hooks/useVisitorCounter";
 import { ShieldAlert, KeyRound, ArrowRight, ArrowLeft, Users, Sparkles } from "lucide-react";
+export const dynamic = "force-dynamic";
 
 export default function AuthSection() {
   const [companyId, setCompanyId] = useState("");
