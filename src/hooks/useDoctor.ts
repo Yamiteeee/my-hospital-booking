@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useGetIdentity, useLogout, useList, useUpdate, useCreate } from "@refinedev/core";
+import { useGetIdentity, useLogout, useList, useUpdate, useCreate, useDelete } from "@refinedev/core";
 import { useBookingOperations } from "@/hooks/useBookingOperations";
 import { useRouter } from "next/navigation";
 import { BookingRecord, Doctor } from "@/types";
@@ -18,13 +18,14 @@ export function useDoctor() {
   const { mutate: logout } = useLogout();
   const { mutate: updateDoctor } = useUpdate();
   const { mutate: createLeave } = useCreate(); 
+  const { mutate: deleteLeave } = useDelete(); // 🌟 Added for rolling back a leave day
   
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split("T")[0]);
   const { data: identity, isLoading: identityLoading } = useGetIdentity<UseDoctorIdentity>();
 
   const activeDoctorId = (identity?.badge_id || identity?.id || "").toUpperCase();
 
-  // Load ONLY appointments dispatched directly to this doctor
+  // 🚀 REAL-TIME: Load ONLY appointments dispatched directly to this doctor
   const { result: bookingsResult, query: bookingsQuery } = useList<BookingRecord>({
     resource: "bookings",
     filters: [
@@ -32,20 +33,24 @@ export function useDoctor() {
       { field: "preferredDate", operator: "eq", value: selectedDate },
       { field: "status", operator: "ne", value: "cancelled" }
     ],
-    queryOptions: { enabled: !!activeDoctorId }
+    queryOptions: { enabled: !!activeDoctorId },
+    liveMode: "auto", // 🌟 Synchronizes with the database live stream
   });
 
+  // 🚀 REAL-TIME: Stream updates to this doctor's core profile record
   const { result: doctorInfo, query: doctorQuery } = useList<Doctor>({
     resource: "doctors",
     filters: [{ field: "badge_id", operator: "eq", value: activeDoctorId }],
-    queryOptions: { enabled: !!activeDoctorId }
+    queryOptions: { enabled: !!activeDoctorId },
+    liveMode: "auto", // 🌟 Syncs custom breaks or shift limits immediately
   });
 
-  // Fetch upcoming leaves for this doctor
+  // 🚀 REAL-TIME: Fetch and live-update upcoming leaves for this doctor
   const { result: leavesResult, query: leavesQuery } = useList({
     resource: "leaves",
     filters: [{ field: "badge_id", operator: "eq", value: activeDoctorId }],
-    queryOptions: { enabled: !!activeDoctorId }
+    queryOptions: { enabled: !!activeDoctorId },
+    liveMode: "auto", // 🌟 Syncs live calendar data changes
   });
 
   const currentDoctor = doctorInfo?.data?.[0];
@@ -105,6 +110,19 @@ export function useDoctor() {
     });
   };
 
+  // 🌟 NEW: Cancel Scheduled Leave Day Function
+  const cancelLeave = (leaveId: string) => {
+    deleteLeave({
+      resource: "leaves",
+      id: leaveId,
+      mutationMode: "optimistic",
+      successNotification: () => ({
+        message: "Leave Cancelled. Roster Restored.",
+        type: "success"
+      })
+    });
+  };
+
   const handleEndShift = () => {
     logout({}, {
       onSuccess: () => {
@@ -126,6 +144,7 @@ export function useDoctor() {
     handleStatusUpdate: updateBookingStatus,
     toggleBreak,
     requestLeave, 
+    cancelLeave, // 🌟 Exposed leave revocation
     setOffWorkHour, // 🌟 Exposed the off-work configuration method
   };
 }

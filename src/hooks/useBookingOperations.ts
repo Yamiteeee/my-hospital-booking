@@ -70,5 +70,29 @@ export function useBookingOperations() {
     });
   };
 
-  return { submitNewBooking, updateBookingStatus, dispatchToDoctorSlot };
+  // 🔄 NEW: Clear all scheduling fields and revert patient back to triage queue
+  const rollbackBookingToQueue = (id: string, onSuccessCallback?: () => void) => {
+    updateMutation({
+      resource: "bookings",
+      id,
+      values: {
+        status: "pending",
+        doctorId: null,
+        timeSlot: null,
+        preferredDate: null,
+      },
+      mutationMode: "optimistic",
+    }, {
+      onSuccess: () => {
+        if (onSuccessCallback) onSuccessCallback();
+      }
+    });
+  };
+
+  return { 
+    submitNewBooking, 
+    updateBookingStatus, 
+    dispatchToDoctorSlot, 
+    rollbackBookingToQueue 
+  };
 }

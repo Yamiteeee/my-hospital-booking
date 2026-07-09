@@ -22,7 +22,8 @@ import {
   Calendar,
   LogOut,
   Activity,
-  PlaneTakeoff
+  PlaneTakeoff,
+  RotateCcw // 🔄 Added for Reset/Undo styling
 } from "lucide-react";
 
 export default function ReceptionistSection() {
@@ -44,14 +45,14 @@ export default function ReceptionistSection() {
     handleStatusUpdate,
     handleDoctorAvailabilityUpdate,
     dispatchToSlot,
-    activeLeaves = [] // 🌟 Destructured leaves array
+    handleCancelAndResetBooking, // 🔄 Grabbed the new rollback action from the hook
+    activeLeaves = []
   } = useReceptionistDesk();
 
   const targetSpecialty = selectedPatient?.normalized_reason 
     ? SPECIALTY_ROUTING_MAP[selectedPatient.normalized_reason as keyof typeof SPECIALTY_ROUTING_MAP] 
     : "General";
 
-  // 🌟 Derived Flag: Check if the currently targeted doctor is off-duty today
   const isDoctorOnLeave = activeLeaves.some(
     (leave: any) => leave.badge_id === currentDoctor?.badge_id && leave.leave_date === selectedDate
   );
@@ -74,7 +75,7 @@ export default function ReceptionistSection() {
   const getPatientLifecycleBadge = (status: BookingRecord["status"]) => {
     switch (status) {
       case "checked_in":
-        return <Badge className="bg-sky-50 border-sky-200 text-sky-700 text-[9px] shadow-none">Waiting Outside</Badge>;
+        return <Badge className="bg-sky-50 border-sky-200 text-sky-700 text-[9px] shadow-none animate-pulse">Waiting Outside</Badge>;
       case "present":
         return <Badge className="bg-amber-50 border-amber-200 text-amber-700 text-[9px] shadow-none animate-pulse">In Consultation</Badge>;
       case "completed":
@@ -95,8 +96,9 @@ export default function ReceptionistSection() {
         </div>
         
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
-          <div className="text-[11px] h-10 font-semibold text-slate-600 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl flex items-center gap-2 justify-center shadow-sm">
-            <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" /> Receptionist Session Active
+          {/* Live Data Sync Active Badge */}
+          <div className="text-[11px] h-10 font-semibold text-emerald-700 bg-emerald-50/60 border border-emerald-200 px-3 py-1.5 rounded-xl flex items-center gap-2 justify-center shadow-sm">
+            <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" /> Live Feed Sync Connected
           </div>
 
           <Button
@@ -138,7 +140,7 @@ export default function ReceptionistSection() {
                   <Card 
                     key={patient.id}
                     onClick={() => setSelectedPatient(patient)}
-                    className={`cursor-pointer transition-all border rounded-xl shadow-sm hover:shadow-md ${
+                    className={`cursor-pointer transition-all duration-300 border rounded-xl shadow-sm hover:shadow-md ${
                       isSelected ? "ring-2 ring-blue-600 border-transparent bg-blue-50/10" : "border-slate-200 bg-white"
                     }`}
                   >
@@ -181,7 +183,7 @@ export default function ReceptionistSection() {
                   <button
                     key={doc.badge_id || doc.id}
                     onClick={() => setActiveDoctorTab(doc.badge_id || doc.id)}
-                    className={`px-3 py-2 text-xs font-semibold rounded-lg transition-all flex items-center gap-3 border grow sm:grow-0 relative ${
+                    className={`px-3 py-2 text-xs font-semibold rounded-lg transition-all duration-300 flex items-center gap-3 border grow sm:grow-0 relative ${
                       isActive 
                         ? "bg-white text-slate-900 shadow-sm border-slate-200" 
                         : "text-slate-500 hover:text-slate-900 border-transparent hover:bg-white/50"
@@ -273,7 +275,6 @@ export default function ReceptionistSection() {
             </CardHeader>
             
             <CardContent className="p-0 max-h-[60vh] overflow-y-auto">
-              {/* 🌟 LEAVE BLANKET OVERLAY CONTAINER */}
               {isDoctorOnLeave ? (
                 <div className="p-12 text-center flex flex-col items-center justify-center space-y-3 bg-rose-50/10 border-t border-rose-100/40">
                   <div className="h-12 w-12 bg-rose-50 text-rose-600 border border-rose-100 rounded-xl flex items-center justify-center shadow-sm">
@@ -288,20 +289,15 @@ export default function ReceptionistSection() {
                 </div>
               ) : (
                 <>
-                 {/* Mobile View */}
+                 {/* Mobile Layout View */}
                   <div className="block sm:hidden divide-y divide-slate-100">
                     {OPERATIONAL_HOURS.map((hour: string) => {
                       const isBreak = currentDoctor?.breaks?.includes(hour) ?? false;
-                      
-                      // 🌟 Check if this hour is past the doctor's early off-work cutoff limit
-                      const isPastOffWorkLimit = currentDoctor?.off_work_hour 
-                        ? hour >= currentDoctor.off_work_hour 
-                        : false;
-
+                      const isPastOffWorkLimit = currentDoctor?.off_work_hour ? hour >= currentDoctor.off_work_hour : false;
                       const filledBooking = bookings.find(b => (b.badge_id || b.doctorId) === currentDoctor?.badge_id && b.timeSlot === hour && b.preferredDate === selectedDate && b.status !== "cancelled");
 
                       return (
-                        <div key={hour} className={`p-4 space-y-2 ${isBreak || isPastOffWorkLimit ? "bg-slate-50/50 opacity-60" : filledBooking ? "bg-slate-50/20" : ""}`}>
+                        <div key={hour} className={`p-4 space-y-2 transition-colors duration-300 ${isBreak || isPastOffWorkLimit ? "bg-slate-50/50 opacity-60" : filledBooking ? "bg-slate-50/20" : ""}`}>
                           <div className="flex justify-between items-center">
                             <span className="font-bold text-xs text-slate-700 flex items-center gap-1.5"><Clock className="h-3.5 w-3.5 text-slate-400" /> {hour}</span>
                             {isPastOffWorkLimit && <Badge className="bg-slate-100 border-slate-200 text-slate-400 text-[9px] shadow-none">🛑 Off Work</Badge>}
@@ -318,9 +314,22 @@ export default function ReceptionistSection() {
                                 
                                 <div className="mt-2 flex gap-1.5 flex-wrap">
                                   {filledBooking.status !== "checked_in" && filledBooking.status !== "present" && filledBooking.status !== "completed" ? (
-                                    <Button size="sm" variant="outline" className="text-[10px] h-6 grow" onClick={() => handleStatusUpdate(filledBooking.id, "checked_in")}>
-                                      Check In Patient
-                                    </Button>
+                                    <div className="flex items-center gap-2 w-full">
+                                      <Button size="sm" variant="outline" className="text-[10px] h-6 grow" onClick={() => handleStatusUpdate(filledBooking.id, "checked_in")}>
+                                        Check In Patient
+                                      </Button>
+                                      {/* 🔄 Mobile Reset Action */}
+                                      <Button size="sm" variant="ghost" className="h-6 text-[10px] text-slate-400 hover:text-rose-600 px-2 rounded-md" onClick={() => handleCancelAndResetBooking(filledBooking.id)} title="Return to waiting queue">
+                                        <RotateCcw className="h-3 w-3" />
+                                      </Button>
+                                    </div>
+                                  ) : filledBooking.status === "checked_in" ? (
+                                    <div className="flex items-center justify-between w-full bg-sky-50/30 border border-sky-100 rounded-md p-1">
+                                      <span className="text-[10px] text-sky-700 pl-1 font-medium">Checked In</span>
+                                      <Button size="sm" variant="ghost" className="h-5 text-[10px] text-slate-400 hover:text-rose-600 px-1.5" onClick={() => handleCancelAndResetBooking(filledBooking.id)}>
+                                        <RotateCcw className="h-2.5 w-2.5 mr-1" /> Revert
+                                      </Button>
+                                    </div>
                                   ) : filledBooking.status === "present" ? (
                                     <Badge className="bg-amber-100 border-amber-300 text-amber-800 text-[10px] py-1 font-semibold tracking-normal grow justify-center rounded-md shadow-none cursor-not-allowed">
                                       In Consultation
@@ -350,28 +359,23 @@ export default function ReceptionistSection() {
                     })}
                   </div>
 
-                  {/* Desktop Table Layout */}
+                  {/* Desktop Table Layout View */}
                   <Table className="hidden sm:table">
                     <TableHeader className="bg-slate-50 sticky top-0 backdrop-blur-sm z-10 border-b border-slate-200">
                       <TableRow>
                         <TableHead className="text-[10px] font-bold uppercase tracking-wider text-slate-400 py-3 pl-6 w-[120px]">Time Slot</TableHead>
                         <TableHead className="text-[10px] font-bold uppercase tracking-wider text-slate-400 py-3">Scheduled Patient Context</TableHead>
-                        <TableHead className="text-[10px] font-bold uppercase tracking-wider text-slate-400 py-3 text-right pr-6 w-[200px]">Actions</TableHead>
+                        <TableHead className="text-[10px] font-bold uppercase tracking-wider text-slate-400 py-3 text-right pr-6 w-[220px]">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {OPERATIONAL_HOURS.map((hour: string) => {
                         const isBreak = currentDoctor?.breaks?.includes(hour) ?? false;
-                        
-                        // 🌟 Check if this hour is past the doctor's early off-work cutoff limit
-                        const isPastOffWorkLimit = currentDoctor?.off_work_hour 
-                          ? hour >= currentDoctor.off_work_hour 
-                          : false;
-
+                        const isPastOffWorkLimit = currentDoctor?.off_work_hour ? hour >= currentDoctor.off_work_hour : false;
                         const filledBooking = bookings.find(b => (b.badge_id || b.doctorId) === currentDoctor?.badge_id && b.timeSlot === hour && b.preferredDate === selectedDate && b.status !== "cancelled");
 
                         return (
-                          <TableRow key={hour} className={`border-b border-slate-100/80 ${isBreak || isPastOffWorkLimit ? "bg-slate-50/50 opacity-60" : filledBooking ? "bg-slate-50/20" : "hover:bg-slate-50/10"}`}>
+                          <TableRow key={hour} className={`border-b border-slate-100/80 transition-all duration-300 ${isBreak || isPastOffWorkLimit ? "bg-slate-50/50 opacity-60" : filledBooking ? "bg-slate-50/20" : "hover:bg-slate-50/10"}`}>
                             <TableCell className="font-semibold text-xs text-slate-700 py-3.5 pl-6">
                               <span className="flex items-center gap-1.5"><Clock className="h-3 w-3 text-slate-400" /> {hour}</span>
                             </TableCell>
@@ -404,14 +408,40 @@ export default function ReceptionistSection() {
                               ) : filledBooking ? (
                                 <div className="flex items-center justify-end gap-2">
                                   {getPatientLifecycleBadge(filledBooking.status)}
+                                  
+                                  {/* 🔄 Desktop View: If simply booked, show Check In + Revert Button */}
                                   {filledBooking.status !== "checked_in" && filledBooking.status !== "present" && filledBooking.status !== "completed" && (
+                                    <>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => handleStatusUpdate(filledBooking.id, "checked_in")}
+                                        className="h-7 text-[11px] font-medium px-2.5"
+                                      >
+                                        Check In
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={() => handleCancelAndResetBooking(filledBooking.id)}
+                                        className="h-7 text-slate-400 hover:text-rose-600 hover:bg-rose-50 px-2"
+                                        title="Wrong slot? Return patient to queue"
+                                      >
+                                        <RotateCcw className="h-3.5 w-3.5" />
+                                      </Button>
+                                    </>
+                                  )}
+
+                                  {/* 🔄 Desktop View: If checked-in but not in room yet, still allow rollback */}
+                                  {filledBooking.status === "checked_in" && (
                                     <Button
                                       size="sm"
-                                      variant="outline"
-                                      onClick={() => handleStatusUpdate(filledBooking.id, "checked_in")}
-                                      className="h-7 text-[11px] font-medium px-2.5"
+                                      variant="ghost"
+                                      onClick={() => handleCancelAndResetBooking(filledBooking.id)}
+                                      className="h-7 text-slate-400 hover:text-rose-600 hover:bg-rose-50 text-[11px] px-2"
+                                      title="Cancel allocation and return to queue"
                                     >
-                                      Check In
+                                      <RotateCcw className="h-3 w-3 mr-1" /> Undo Allocation
                                     </Button>
                                   )}
                                 </div>

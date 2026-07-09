@@ -1,8 +1,8 @@
 "use client";
 
 import React from "react";
-import { Refine, AuthProvider } from "@refinedev/core";
-import { dataProvider } from "@refinedev/supabase";
+import { Refine, AuthProvider, LiveProvider } from "@refinedev/core";
+import { dataProvider, liveProvider } from "@refinedev/supabase";
 import { supabaseClient } from "@/providers/Supabase/Client";
 
 const secureSupabaseAuthProvider: AuthProvider = {
@@ -47,7 +47,7 @@ const secureSupabaseAuthProvider: AuthProvider = {
     document.cookie = "hospital_user_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
     return { success: true, redirectTo: "/login" };
   },
-check: async () => {
+  check: async () => {
     if (typeof window === "undefined") return { authenticated: false, redirectTo: "/login" };
 
     const session = localStorage.getItem("hospital_user_session");
@@ -105,30 +105,60 @@ check: async () => {
   },
 };
 
+// 🛠️ CUSTOM REALTIME PATCH FOR SUPABASE MULTI-FILTER LIMITATION
+const baseLiveProvider = liveProvider(supabaseClient);
+
+const safeLiveProvider: LiveProvider = {
+  ...baseLiveProvider,
+  subscribe: ({ channel, types, params, callback }) => {
+    const sanitizedParams = { ...params };
+
+    // If Refine is passing down multiple filters from a table/list hook
+    if (sanitizedParams.filters && sanitizedParams.filters.length > 1) {
+      // Safely slice to only the first filter element to keep Supabase happy
+      sanitizedParams.filters = [sanitizedParams.filters[0]];
+    }
+
+    return baseLiveProvider.subscribe({
+      channel,
+      types,
+      params: sanitizedParams,
+      callback: (event) => {
+        // When a real-time event drops in, we bypass client-side checks 
+        // and trigger a background refetch so the UI table updates instantly.
+        callback(event);
+      },
+    });
+  },
+};
+
 export function RefineGlobalProvider({ children }: { children: React.ReactNode }) {
   return (
     <Refine
       dataProvider={dataProvider(supabaseClient)}
+      liveProvider={safeLiveProvider} // 🚀 Using patched provider to manage web sockets smoothly
       authProvider={secureSupabaseAuthProvider}
-              resources={[
-            {
-              name: "bookings",
-              meta: { label: "Intake Pipeline Queues" }
-            },
-            {
-              name: "doctors",
-              meta: { 
-                label: "Medical Staff Registry",
-                idColumnName: "badge_id"
-              }
-            },
-            // ADDED THE LEAVES RESOURCE CONFIGURATION HERE
-            {
-              name: "leaves",
-              meta: { label: "Staff Time Off Records" }
-            }
-          ]}
-      options={{ syncWithLocation: false }}
+      resources={[
+        {
+          name: "bookings",
+          meta: { label: "Intake Pipeline Queues" }
+        },
+        {
+          name: "doctors",
+          meta: { 
+            label: "Medical Staff Registry",
+            idColumnName: "badge_id"
+          }
+        },
+        {
+          name: "leaves",
+          meta: { label: "Staff Time Off Records" }
+        }
+      ]}
+      options={{ 
+        syncWithLocation: false,
+        liveMode: "auto" // 🌟 Keeps live tracking enabled automatically
+      }}
     >
       {children}
     </Refine>

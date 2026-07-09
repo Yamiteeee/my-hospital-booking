@@ -18,7 +18,8 @@ import {
   CheckCircle,
   PlusCircle,
   XCircle,
-  AlertOctagon
+  AlertOctagon,
+  Radio // 🌟 Imported for the Live Sockets UI indicator
 } from "lucide-react";
 
 export default function DoctorDashboard() {
@@ -34,7 +35,7 @@ export default function DoctorDashboard() {
     toggleBreak, 
     doctorLeaves = [], 
     requestLeave,
-    setOffWorkHour // 🌟 Integrated handler from modified hook
+    setOffWorkHour
   } = useDoctor();
 
   if (identityLoading || !currentDoctor) {
@@ -53,19 +54,26 @@ export default function DoctorDashboard() {
       {/* Upper Context Control Banner */}
       <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center border-b border-slate-100 pb-5">
         <div>
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest bg-emerald-50 px-2.5 py-1 rounded-md">
-              Physician Portal Active
+          <div className="flex items-center flex-wrap gap-2">
+            {/* 🚀 REALTIME LIVE FEED FEEDBACK BADGE */}
+            <span className="inline-flex items-center gap-1.5 text-[10px] font-bold text-emerald-700 uppercase tracking-widest bg-emerald-50 border border-emerald-200/60 px-2.5 py-1 rounded-md shadow-sm">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              Live Gateway Sync Active
             </span>
-            <span className="text-[10px] font-mono text-slate-400 uppercase">
+            
+            <span className="text-[10px] font-mono text-slate-400 uppercase bg-slate-100 px-2 py-1 rounded-md">
               Badge: {identity?.badge_id || identity?.id || "UNVERIFIED"}
             </span>
           </div>
+          
           <h1 className="text-xl font-bold text-slate-900 tracking-tight mt-2">
             Welcome back, {currentDoctor?.name || "Doctor"}
           </h1>
           <p className="text-xs text-slate-500 mt-0.5">
-            Department: <span className="font-semibold">{currentDoctor?.specialty || "General Medicine"}</span>
+            Department: <span className="font-semibold text-slate-700">{currentDoctor?.specialty || "General Medicine"}</span>
           </p>
         </div>
 
@@ -100,7 +108,7 @@ export default function DoctorDashboard() {
         <div className="space-y-4 lg:col-span-1">
           <h3 className="text-xs font-bold uppercase text-slate-400 tracking-wider">Day at a Glance</h3>
 
-          {/* 🌟 NEW: DYNAMIC OFF-WORK MANAGEMENT MODULE CARD */}
+          {/* DYNAMIC OFF-WORK MANAGEMENT MODULE CARD */}
           <Card className="border-slate-200/80 shadow-sm rounded-xl bg-white">
             <CardContent className="p-5 space-y-3">
               <div className="space-y-1">
@@ -115,7 +123,7 @@ export default function DoctorDashboard() {
               <select
                 value={currentDoctor?.off_work_hour || ""}
                 onChange={(e) => setOffWorkHour(e.target.value || null)}
-                className="w-full text-xs h-8 px-2.5 rounded-md border border-slate-200 bg-slate-50 font-medium text-slate-700 focus:outline-none focus:ring-1 focus:ring-slate-300"
+                className="w-full text-xs h-8 px-2.5 rounded-md border border-slate-200 bg-slate-50 font-medium text-slate-700 focus:outline-none focus:ring-1 focus:ring-slate-300 transition-all cursor-pointer"
               >
                 <option value="">Full Shift (Available All Day)</option>
                 {OPERATIONAL_HOURS.map((hr) => (
@@ -138,7 +146,7 @@ export default function DoctorDashboard() {
                   
               {/* Check if the doctor is currently on leave for the active date filter view */}
               {doctorLeaves.some((leave: any) => leave.leave_date === selectedDate) ? (
-                <div className="text-[11px] font-bold text-rose-700 bg-rose-50 border border-rose-100 p-2.5 rounded-lg text-center">
+                <div className="text-[11px] font-bold text-rose-700 bg-rose-50 border border-rose-100 p-2.5 rounded-lg text-center animate-in zoom-in-95 duration-150">
                   ✈️ Scheduled Off-Duty on this Date
                 </div>
               ) : (
@@ -161,21 +169,21 @@ export default function DoctorDashboard() {
             <CardContent className="p-5 space-y-4">
               <div className="flex justify-between items-center border-b border-slate-50 pb-3">
                 <span className="text-xs text-slate-500 font-medium">Total Manifest</span>
-                <Badge variant="secondary" className="bg-slate-100 text-slate-700 font-bold text-xs px-2.5 shadow-none">
+                <Badge variant="secondary" className="bg-slate-100 text-slate-700 font-bold text-xs px-2.5 shadow-none transition-all duration-300">
                   {dailyAppointments.length} Booked
                 </Badge>
               </div>
 
               <div className="flex justify-between items-center border-b border-slate-50 pb-3">
                 <span className="text-xs text-slate-500 font-medium">Active Consultations</span>
-                <Badge className="bg-amber-50 border border-amber-100 text-amber-700 font-bold text-xs px-2.5 shadow-none">
+                <Badge className="bg-amber-50 border border-amber-100 text-amber-700 font-bold text-xs px-2.5 shadow-none transition-all duration-300">
                   {dailyAppointments.filter(b => b.status === "present").length} In Room
                 </Badge>
               </div>
 
               <div className="flex justify-between items-center">
                 <span className="text-xs text-slate-500 font-medium">Scheduled Breaks</span>
-                <div className="flex items-center gap-1 text-amber-700 font-semibold text-xs">
+                <div className="flex items-center gap-1 text-amber-700 font-semibold text-xs transition-all duration-300">
                   <Coffee className="h-3.5 w-3.5 text-amber-500" /> {currentDoctor?.breaks?.length || 0} Blocks
                 </div>
               </div>
@@ -193,7 +201,6 @@ export default function DoctorDashboard() {
                 const isBreak = (currentDoctor?.breaks as string[])?.includes(hour) ?? false;
                 const appointment = dailyAppointments.find(b => b.timeSlot === hour);
                 
-                // 🌟 VET CUTOFF CONDITIONS: Evaluate if slot matches or follows off work limit
                 const isPastOffWorkLimit = currentDoctor?.off_work_hour
                   ? hour >= currentDoctor.off_work_hour
                   : false;
@@ -210,9 +217,8 @@ export default function DoctorDashboard() {
                     </div>
 
                     <div className="flex-1 p-3 flex flex-col justify-center">
-                      {/* 🌟 BLOCK PATTERN 1: CHECK FOR OFF-WORK LIMIT OVERRIDE FIRST */}
                       {isPastOffWorkLimit ? (
-                        <div className="border border-slate-200/60 bg-slate-100/40 text-slate-400 rounded-xl px-4 py-2.5 flex items-center justify-between animate-in fade-in duration-700">
+                        <div className="border border-slate-200/60 bg-slate-100/40 text-slate-400 rounded-xl px-4 py-2.5 flex items-center justify-between animate-in fade-in slide-in-from-top-1 duration-300">
                           <div className="flex items-center gap-2.5">
                             <div className="h-7 w-7 rounded-lg bg-slate-200/60 flex items-center justify-center text-slate-500 shrink-0">
                               <AlertOctagon className="h-4 w-4" />
@@ -225,8 +231,7 @@ export default function DoctorDashboard() {
                           <Badge className="bg-slate-200 text-slate-500 text-[9px] font-bold border-transparent shadow-none uppercase">Closed</Badge>
                         </div>
                       ) : isBreak ? (
-                        /* BLOCK PATTERN 2: BREAK RENDER */
-                        <div className="bg-amber-50/40 border border-amber-100/70 text-amber-800 rounded-xl px-4 py-2.5 flex items-center justify-between animate-in fade-in duration-100">
+                        <div className="bg-amber-50/40 border border-amber-100/70 text-amber-800 rounded-xl px-4 py-2.5 flex items-center justify-between animate-in fade-in slide-in-from-top-1 duration-200">
                           <div className="flex items-center gap-2.5">
                             <div className="h-7 w-7 rounded-lg bg-amber-100 flex items-center justify-center text-amber-600 shadow-none shrink-0">
                               <Coffee className="h-4 w-4" />
@@ -249,8 +254,7 @@ export default function DoctorDashboard() {
                           </div>
                         </div>
                       ) : appointment ? (
-                        /* BLOCK PATTERN 3: ACTIVE APPOINTMENTS */
-                        <div className={`border rounded-xl px-4 py-3 flex flex-col sm:flex-row gap-3 sm:items-center justify-between shadow-sm transition-all ${
+                        <div className={`border rounded-xl px-4 py-3 flex flex-col sm:flex-row gap-3 sm:items-center justify-between shadow-sm transition-all animate-in fade-in slide-in-from-top-1 duration-300 ${
                           inConsultation 
                             ? "bg-amber-50/40 border-amber-200 text-amber-950 shadow-inner" 
                             : isFinished
@@ -267,7 +271,7 @@ export default function DoctorDashboard() {
                               <div className="flex flex-wrap items-center gap-2">
                                 <p className="text-xs font-bold tracking-tight">{appointment.patient_name}</p>
                                 {isWaiting && (
-                                  <Badge className="bg-emerald-600 text-white border-transparent text-[9px] font-bold px-1.5 h-4 flex items-center py-0 rounded shadow-none">Waiting Outside</Badge>
+                                  <Badge className="bg-emerald-600 text-white border-transparent text-[9px] font-bold px-1.5 h-4 flex items-center py-0 rounded shadow-none animate-in scale-95">Waiting Outside</Badge>
                                 )}
                                 {inConsultation && (
                                   <Badge className="bg-amber-500 text-white border-transparent text-[9px] font-bold px-1.5 h-4 flex items-center py-0 rounded shadow-none animate-pulse">In Consultation</Badge>
@@ -312,8 +316,7 @@ export default function DoctorDashboard() {
                           </div>
                         </div>
                       ) : (
-                        /* BLOCK PATTERN 4: UNSCHEDULED OPEN SLOT ELEMENT */
-                        <div className="flex items-center justify-between pl-2">
+                        <div className="flex items-center justify-between pl-2 animate-in fade-in duration-150">
                           <div className="text-[11px] text-slate-400 font-normal italic group-hover:text-slate-500 transition-colors flex items-center gap-1">
                             No active appointments assigned to this time frame.
                           </div>

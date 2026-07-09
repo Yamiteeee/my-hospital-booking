@@ -13,28 +13,34 @@ export const OPERATIONAL_HOURS = [
 ];
 
 export function useReceptionistDesk() {
-  const { updateBookingStatus, dispatchToDoctorSlot } = useBookingOperations();
+  // 🔄 Destructured rollbackBookingToQueue here
+  const { updateBookingStatus, dispatchToDoctorSlot, rollbackBookingToQueue } = useBookingOperations();
   const { mutate: updateDoctorMutation } = useUpdate();
 
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split("T")[0]);
   const [selectedPatient, setSelectedPatient] = useState<BookingRecord | null>(null);
   const [activeDoctorTab, setActiveDoctorTab] = useState<string>(""); 
 
+  // 🚀 REAL-TIME: Stream incoming triage records and status updates
   const { tableQuery } = useTable<BookingRecord>({
     resource: "bookings",
-    sorters: { initial: [{ field: "created_at", order: "desc" }] }
+    sorters: { initial: [{ field: "created_at", order: "desc" }] },
+    liveMode: "auto", // 🌟 Synchronizes the central patient pipeline
   });
 
+  // 🚀 REAL-TIME: Stream status changes, breaks, and off-work caps for medical staff
   const { result: doctorsResult, query: doctorsQuery } = useList<Doctor>({
     resource: "doctors",
-    pagination: { mode: "off" } 
+    pagination: { mode: "off" },
+    liveMode: "auto", // 🌟 Synchronizes dynamic availability and roster profiles
   });
 
-  // 🌟 Fetch leaves data specifically filtering for the active date view
+  // 🚀 REAL-TIME: Stream doctor leave arrays specifically filtering for the active date view
   const { result: leavesResult } = useList({
     resource: "leaves",
     filters: [{ field: "leave_date", operator: "eq", value: selectedDate }],
-    pagination: { mode: "off" }
+    pagination: { mode: "off" },
+    liveMode: "auto", // 🌟 Prevents scheduling over a physician's newly requested time off
   });
 
   const bookings = tableQuery?.data?.data ?? [];
@@ -82,12 +88,20 @@ export function useReceptionistDesk() {
     });
   };
 
+  // 🔄 UI Event Handler exposed directly to your dashboard component
+  const handleCancelAndResetBooking = (bookingId: string) => {
+    rollbackBookingToQueue(bookingId);
+  };
+
   return {
-    bookings, doctors, pendingQueue, activeLeaves, // 🌟 Returned activeLeaves array
+    bookings, doctors, pendingQueue, activeLeaves, 
     isLoading: tableQuery?.isLoading || doctorsQuery?.isLoading,
     selectedPatient, setSelectedPatient, activeDoctorTab, setActiveDoctorTab,
     currentDoctor, isDepartmentMismatch: getDepartmentMismatchForBooking(selectedPatient),
     getDepartmentMismatchForBooking, handleStatusUpdate: updateBookingStatus,
-    handleDoctorAvailabilityUpdate, dispatchToSlot, selectedDate, setSelectedDate
+    handleDoctorAvailabilityUpdate, dispatchToSlot, selectedDate, setSelectedDate,
+    
+    // 🔄 Exposed method for the UI's "Undo/Cancel" buttons
+    handleCancelAndResetBooking
   };
 }

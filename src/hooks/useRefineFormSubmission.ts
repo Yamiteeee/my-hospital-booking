@@ -13,9 +13,11 @@ export function useRefineFormSubmission() {
     patient_name: "", phone: "", department: "", urgency: "routine", preferredDate: "", preferredTime: ""
   });
 
+  // 🚀 REAL-TIME: Keep the specialty mapping options synced automatically
   const { result, query } = useList<Doctor>({
     resource: "doctors",
-    pagination: { mode: "off" }
+    pagination: { mode: "off" },
+    liveMode: "auto" // 🌟 Live streams metadata to the registration dropdown
   });
 
   const uniqueSpecialties = Array.from(
