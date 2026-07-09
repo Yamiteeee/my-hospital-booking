@@ -187,7 +187,6 @@ export function useDoctor() {
   };
 
   const cancelLeave = (leaveId: string | number) => {
-    console.log("🚀 cancelLeave real-time execution wrapper. Target ID:", leaveId);
 
     if (!leaveId || leaveId === "undefined") {
       console.error("❌ Aborted! Missing leave selection target.");

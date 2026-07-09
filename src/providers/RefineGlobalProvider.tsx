@@ -14,16 +14,13 @@ const secureSupabaseAuthProvider: AuthProvider = {
       };
     }
 
-    console.log("Searching database for badge_id matching:", companyId.trim());
+
 
     const { data: profile, error } = await supabaseClient
       .from("profiles")
       .select("badge_id, role, name")
       .ilike("badge_id", companyId.trim())
       .maybeSingle();
-
-    console.log("Database Response Data:", profile);
-    console.log("Database Response Error:", error);
 
     if (error || !profile) {
       return {
