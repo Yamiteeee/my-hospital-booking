@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useGetIdentity, useLogout, useList, useUpdate, useCreate, useDelete } from "@refinedev/core";
 import { useBookingOperations } from "@/hooks/useBookingOperations";
 import { useRouter } from "next/navigation";
 import { BookingRecord, Doctor } from "@/types";
+import { supabaseClient } from "@/providers/Supabase/Client";
 
 export interface UseDoctorIdentity {
   id?: string;
@@ -24,14 +25,16 @@ export function useDoctor() {
     new Date().toISOString().split("T")[0]
   );
   
+  // 🎯 SOURCE OF TRUTH STATE: Safe from React Query's internal auto-refetch cache loops
+  const [dailyAppointments, setDailyAppointments] = useState<BookingRecord[]>([]);
+  const isInitialLoad = useRef<Record<string, boolean>>({});
+
   const { data: identity, isLoading: identityLoading } = useGetIdentity<UseDoctorIdentity>();
 
   // Get the normalized active doctor ID string
   const activeDoctorId = (identity?.badge_id || identity?.id || "").toUpperCase();
 
-  // 🚀 TRUE REAL-TIME FIXED:
-  // We filter ONLY by this doctor's ID. When doctorId becomes null on the server,
-  // it instantly drops out of this subscription channel, forcing an immediate UI removal!
+  // Baseline fetch - NO liveMode here. We handle streaming explicitly to avoid cache collisions.
   const { result: bookingsResult, query: bookingsQuery } = useList<BookingRecord>({
     resource: "bookings",
     filters: [
@@ -40,9 +43,77 @@ export function useDoctor() {
     ],
     queryOptions: { 
       enabled: !!activeDoctorId,
-    },
-    liveMode: "auto",
+    }
   });
+
+  // Track calendar date changes and sync initial data payload exactly once per date switch
+  const cacheKey = `${activeDoctorId}-${selectedDate}`;
+  useEffect(() => {
+    if (bookingsResult?.data && !isInitialLoad.current[cacheKey]) {
+      setDailyAppointments(bookingsResult.data);
+      isInitialLoad.current[cacheKey] = true;
+    }
+  }, [bookingsResult, cacheKey]);
+
+  // Reset tracking flag if the date shifts
+  useEffect(() => {
+    if (activeDoctorId) {
+      isInitialLoad.current[cacheKey] = false;
+      bookingsQuery.refetch().then((res) => {
+        if (res.data?.data) setDailyAppointments(res.data.data);
+      });
+    }
+  }, [selectedDate, activeDoctorId]);
+
+  // 🔥 EXPLICIT EVENT BROADCASTER LAYER
+  useEffect(() => {
+    if (!activeDoctorId) return;
+
+    const channel = supabaseClient
+      .channel(`doctor-bookings-stream-${activeDoctorId}-${selectedDate}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "bookings",
+        },
+        (payload) => {
+          const oldRecord = payload.old as Partial<BookingRecord>;
+          const newRecord = payload.new as BookingRecord;
+
+          // Action 1: Row hard deleted on database level
+          if (payload.eventType === "DELETE") {
+            setDailyAppointments((prev) => prev.filter((b) => b.id !== oldRecord.id));
+            return;
+          }
+
+          if (payload.eventType === "UPDATE" || payload.eventType === "INSERT") {
+            const belongsToMe = 
+              newRecord.doctorId?.toUpperCase() === activeDoctorId && 
+              newRecord.preferredDate === selectedDate;
+
+            if (belongsToMe) {
+              setDailyAppointments((prev) => {
+                const exists = prev.some((b) => b.id === newRecord.id);
+                if (exists) {
+                  return prev.map((b) => (b.id === newRecord.id ? newRecord : b));
+                }
+                return [...prev, newRecord];
+              });
+            } else {
+              // ⚡ INSTANT EVICTION: Handles doctorId reassignment or setting to null
+              setDailyAppointments((prev) => prev.filter((b) => b.id !== newRecord.id));
+            }
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabaseClient.removeChannel(channel);
+    };
+  }, [activeDoctorId, selectedDate]);
 
   // 🚀 REAL-TIME: Stream updates to this doctor's core profile record
   const { result: doctorInfo, query: doctorQuery } = useList<Doctor>({
@@ -61,11 +132,6 @@ export function useDoctor() {
   });
 
   const currentDoctor = doctorInfo?.data?.[0];
-
-  // ⚡ SIMPLIFIED CLEAN ARRAY RENDERING:
-  // Since the real-time server filter guarantees only this doctor's current day bookings 
-  // live in this array, we just pass the data straight through.
-  const dailyAppointments = bookingsResult?.data || [];
 
   const toggleBreak = async (hour: string) => {
     const doctorIdentifier = currentDoctor?.id || currentDoctor?.badge_id || activeDoctorId;
@@ -120,14 +186,27 @@ export function useDoctor() {
     });
   };
 
-  const cancelLeave = (leaveId: string) => {
+  const cancelLeave = (leaveId: string | number) => {
+    console.log("🚀 cancelLeave real-time execution wrapper. Target ID:", leaveId);
+
+    if (!leaveId || leaveId === "undefined") {
+      console.error("❌ Aborted! Missing leave selection target.");
+      return;
+    }
+
+    const numericId = Number(leaveId);
+
     deleteLeave({
       resource: "leaves",
-      id: leaveId,
+      id: numericId,
       mutationMode: "optimistic",
       successNotification: () => ({
-        message: "Leave Cancelled. Roster Restored.",
+        message: "Leave Cancelled. Schedule Restored Successfully.",
         type: "success"
+      }),
+      errorNotification: (error) => ({
+        message: `Sync Error: ${error?.message || "Check network connections"}`,
+        type: "error"
       })
     });
   };
@@ -147,7 +226,7 @@ export function useDoctor() {
     selectedDate,
     setSelectedDate,
     currentDoctor: currentDoctor || { badge_id: activeDoctorId, name: identity?.name || "Physician Staff", specialty: "General Clinic", breaks: [], off_work_hour: null },
-    dailyAppointments, 
+    dailyAppointments, // ⚡ Fed by state array tracking manual removals directly
     doctorLeaves: leavesResult?.data || [], 
     handleEndShift,
     handleStatusUpdate: updateBookingStatus,

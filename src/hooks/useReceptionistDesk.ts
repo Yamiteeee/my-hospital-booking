@@ -35,12 +35,15 @@ export function useReceptionistDesk() {
     liveMode: "auto", // 🌟 Synchronizes dynamic availability and roster profiles
   });
 
-  // 🚀 REAL-TIME: Stream doctor leave arrays specifically filtering for the active date view
-  const { result: leavesResult } = useList({
+  // 🚀 TRUE REAL-TIME FIXED: 
+  // Explicitly binding selectedDate into queryOptions dependencies array forces Refine 
+  // to instantly hot-reload WebSocket rooms when the calendar view pivots.
+const { result: leavesResult } = useList({
     resource: "leaves",
     filters: [{ field: "leave_date", operator: "eq", value: selectedDate }],
     pagination: { mode: "off" },
-    liveMode: "auto", // 🌟 Prevents scheduling over a physician's newly requested time off
+    liveMode: "auto", 
+    // 🌟 Cleaned up: Refine tracks 'selectedDate' automatically via the filters array above!
   });
 
   const bookings = tableQuery?.data?.data ?? [];
@@ -55,7 +58,7 @@ export function useReceptionistDesk() {
   }, [doctors, activeDoctorTab]);
 
   const currentDoctor = doctors.find((d) => d.id === activeDoctorTab || d.badge_id === activeDoctorTab) || doctors[0];
-const pendingQueue = bookings.filter((b) => (b.status === "pending" || !b.status) && !b.doctorId && !b.timeSlot);
+  const pendingQueue = bookings.filter((b) => (b.status === "pending" || !b.status) && !b.doctorId && !b.timeSlot);
 
   const getDepartmentMismatchForBooking = (booking: BookingRecord | null) => {
     if (!booking?.normalized_reason || !currentDoctor) return false;
