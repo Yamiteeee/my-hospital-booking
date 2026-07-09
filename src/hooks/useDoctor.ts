@@ -20,10 +20,15 @@ export function useDoctor() {
   const { mutate: updateDoctor } = useUpdate();
   const { mutate: createLeave } = useCreate(); 
   const { mutate: deleteLeave } = useDelete(); 
+
   
-  const [selectedDate, setSelectedDate] = useState<string>(
-    new Date().toISOString().split("T")[0]
-  );
+const [selectedDate, setSelectedDate] = useState<string>(() => {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+});
   
   // 🎯 SOURCE OF TRUTH STATE: Safe from React Query's internal auto-refetch cache loops
   const [dailyAppointments, setDailyAppointments] = useState<BookingRecord[]>([]);

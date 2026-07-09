@@ -17,7 +17,13 @@ export function useReceptionistDesk() {
   const { updateBookingStatus, dispatchToDoctorSlot, rollbackBookingToQueue } = useBookingOperations();
   const { mutate: updateDoctorMutation } = useUpdate();
 
-  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split("T")[0]);
+  const [selectedDate, setSelectedDate] = useState<string>(() => {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`; // Always returns the user's local date
+});
   const [selectedPatient, setSelectedPatient] = useState<BookingRecord | null>(null);
   const [activeDoctorTab, setActiveDoctorTab] = useState<string>(""); 
 
