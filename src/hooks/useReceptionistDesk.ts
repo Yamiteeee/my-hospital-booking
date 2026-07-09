@@ -30,8 +30,16 @@ export function useReceptionistDesk() {
     pagination: { mode: "off" } 
   });
 
+  // 🌟 Fetch leaves data specifically filtering for the active date view
+  const { result: leavesResult } = useList({
+    resource: "leaves",
+    filters: [{ field: "leave_date", operator: "eq", value: selectedDate }],
+    pagination: { mode: "off" }
+  });
+
   const bookings = tableQuery?.data?.data ?? [];
   const doctors = doctorsResult?.data ?? [];
+  const activeLeaves = leavesResult?.data ?? [];
 
   useEffect(() => {
     if (!activeDoctorTab && doctors.length > 0) {
@@ -54,6 +62,12 @@ export function useReceptionistDesk() {
     const targetDocId = currentDoctor.badge_id || currentDoctor.id;
     if (getDepartmentMismatchForBooking(selectedPatient)) return;
 
+    // Guard checking if doctor is on leave right before dispatch execution
+    const isDoctorOnLeave = activeLeaves.some(
+      (leave: any) => leave.badge_id === targetDocId && leave.leave_date === selectedDate
+    );
+    if (isDoctorOnLeave) return;
+
     dispatchToDoctorSlot(selectedPatient.id, targetDocId, hour, selectedDate, () => {
       setSelectedPatient(null);
     });
@@ -69,7 +83,7 @@ export function useReceptionistDesk() {
   };
 
   return {
-    bookings, doctors, pendingQueue,
+    bookings, doctors, pendingQueue, activeLeaves, // 🌟 Returned activeLeaves array
     isLoading: tableQuery?.isLoading || doctorsQuery?.isLoading,
     selectedPatient, setSelectedPatient, activeDoctorTab, setActiveDoctorTab,
     currentDoctor, isDepartmentMismatch: getDepartmentMismatchForBooking(selectedPatient),

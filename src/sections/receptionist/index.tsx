@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useReceptionistDesk, OPERATIONAL_HOURS } from "@/hooks/useReceptionistDesk";
-import { useHospitalLogout } from "@/hooks/useHospitalLogout"; // 🌟 ADDED
+import { useHospitalLogout } from "@/hooks/useHospitalLogout";
 import { SPECIALTY_ROUTING_MAP } from "@/utils/normalization";
 import { BookingRecord, Doctor } from "@/types";
 import { 
@@ -21,11 +21,12 @@ import {
   Users, 
   Calendar,
   LogOut,
-  Activity
+  Activity,
+  PlaneTakeoff
 } from "lucide-react";
 
 export default function ReceptionistSection() {
-  const { performLogout } = useHospitalLogout(); // 🌟 INITIALIZED Hook
+  const { performLogout } = useHospitalLogout();
   
   const {
     bookings,
@@ -42,12 +43,18 @@ export default function ReceptionistSection() {
     setSelectedDate,
     handleStatusUpdate,
     handleDoctorAvailabilityUpdate,
-    dispatchToSlot
+    dispatchToSlot,
+    activeLeaves = [] // 🌟 Destructured leaves array
   } = useReceptionistDesk();
 
   const targetSpecialty = selectedPatient?.normalized_reason 
     ? SPECIALTY_ROUTING_MAP[selectedPatient.normalized_reason as keyof typeof SPECIALTY_ROUTING_MAP] 
     : "General";
+
+  // 🌟 Derived Flag: Check if the currently targeted doctor is off-duty today
+  const isDoctorOnLeave = activeLeaves.some(
+    (leave: any) => leave.badge_id === currentDoctor?.badge_id && leave.leave_date === selectedDate
+  );
 
   const getAvailabilityBadge = (status: Doctor["availability_status"]) => {
     switch (status) {
@@ -95,7 +102,7 @@ export default function ReceptionistSection() {
           <Button
             size="sm"
             variant="ghost"
-            onClick={performLogout} // 🌟 CHANGED
+            onClick={performLogout}
             className="h-10 border border-slate-200 rounded-xl px-3 bg-white text-slate-500 hover:text-rose-600 text-xs font-semibold shadow-sm transition-all flex items-center justify-center gap-1.5"
           >
             <LogOut className="h-4 w-4" />
@@ -168,16 +175,17 @@ export default function ReceptionistSection() {
               {doctors.map((doc: Doctor) => {
                 const isActive = activeDoctorTab === doc.badge_id || activeDoctorTab === doc.id;
                 const initials = doc.name?.split(".").pop()?.trim().charAt(0) || "D";
+                const isDocOnLeaveTab = activeLeaves.some(l => l.badge_id === doc.badge_id && l.leave_date === selectedDate);
 
                 return (
                   <button
                     key={doc.badge_id || doc.id}
                     onClick={() => setActiveDoctorTab(doc.badge_id || doc.id)}
-                    className={`px-3 py-2 text-xs font-semibold rounded-lg transition-all flex items-center gap-3 border grow sm:grow-0 ${
+                    className={`px-3 py-2 text-xs font-semibold rounded-lg transition-all flex items-center gap-3 border grow sm:grow-0 relative ${
                       isActive 
                         ? "bg-white text-slate-900 shadow-sm border-slate-200" 
                         : "text-slate-500 hover:text-slate-900 border-transparent hover:bg-white/50"
-                    }`}
+                    } ${isDocOnLeaveTab ? "opacity-60 bg-rose-50/30" : ""}`}
                   >
                     <div className={`h-7 w-7 rounded-md flex items-center justify-center font-bold text-xs shrink-0 ${
                       isActive ? "bg-blue-600 text-white" : "bg-slate-200 text-slate-700"
@@ -187,7 +195,11 @@ export default function ReceptionistSection() {
                     <div className="text-left">
                       <div className="flex items-center gap-1.5">
                         <p className="leading-none text-xs font-bold text-slate-800">{doc.name}</p>
-                        {getAvailabilityBadge(doc.availability_status)}
+                        {isDocOnLeaveTab ? (
+                          <Badge className="bg-rose-50 border-rose-200 text-rose-700 text-[9px] shadow-none">On Leave</Badge>
+                        ) : (
+                          getAvailabilityBadge(doc.availability_status)
+                        )}
                       </div>
                       <p className="text-[10px] opacity-75 font-normal mt-0.5 flex items-center gap-1">
                         <Stethoscope className="h-2.5 w-2.5" /> {doc.specialty}
@@ -208,7 +220,7 @@ export default function ReceptionistSection() {
                   <div className="flex flex-wrap items-center gap-2 mt-0.5">
                     <CardDescription className="text-xs text-slate-600">Showing blocks for {currentDoctor?.name || "Staff"}</CardDescription>
                     
-                    {currentDoctor?.id && (
+                    {currentDoctor?.id && !isDoctorOnLeave && (
                       <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-md px-1.5 py-0.5 shadow-sm">
                         <Activity className="h-2.5 w-2.5 text-slate-400" />
                         <select
@@ -239,11 +251,15 @@ export default function ReceptionistSection() {
 
               {selectedPatient && (
                 <div className={`text-[11px] font-semibold px-3 py-1.5 rounded-lg flex items-center gap-2 border shadow-none animate-in fade-in duration-150 w-full sm:w-auto justify-center ${
-                  isDepartmentMismatch 
+                  isDoctorOnLeave || isDepartmentMismatch 
                     ? "bg-rose-50 border-rose-200 text-rose-700" 
                     : "bg-emerald-50 border-emerald-200 text-emerald-800"
                 }`}>
-                  {isDepartmentMismatch ? (
+                  {isDoctorOnLeave ? (
+                    <>
+                      <AlertCircle className="h-3.5 w-3.5 text-rose-500" /> Dispatch Blocked: Staff is On Leave
+                    </>
+                  ) : isDepartmentMismatch ? (
                     <>
                       <ShieldAlert className="h-3.5 w-3.5 text-rose-500" /> Restrained: Requires {targetSpecialty} Specialist
                     </>
@@ -255,132 +271,149 @@ export default function ReceptionistSection() {
                 </div>
               )}
             </CardHeader>
+            
             <CardContent className="p-0 max-h-[60vh] overflow-y-auto">
-              
-              {/* Mobile View */}
-              <div className="block sm:hidden divide-y divide-slate-100">
-                {OPERATIONAL_HOURS.map((hour: string) => {
-                  const isBreak = currentDoctor?.breaks?.includes(hour) ?? false;
-                  const filledBooking = bookings.find(b => (b.badge_id || b.doctorId) === currentDoctor?.badge_id && b.timeSlot === hour && b.preferredDate === selectedDate && b.status !== "cancelled");
+              {/* 🌟 LEAVE BLANKET OVERLAY CONTAINER */}
+              {isDoctorOnLeave ? (
+                <div className="p-12 text-center flex flex-col items-center justify-center space-y-3 bg-rose-50/10 border-t border-rose-100/40">
+                  <div className="h-12 w-12 bg-rose-50 text-rose-600 border border-rose-100 rounded-xl flex items-center justify-center shadow-sm">
+                    <PlaneTakeoff className="h-5 w-5" />
+                  </div>
+                  <div className="space-y-1 max-w-md">
+                    <h3 className="text-xs font-bold uppercase text-slate-800 tracking-wide">Physician Schedule Terminated / On Leave</h3>
+                    <p className="text-[11px] text-slate-500 leading-normal">
+                      {currentDoctor?.name || "The selected doctor"} has designated <span className="font-semibold text-rose-700">{selectedDate}</span> as personal time off. Intake queue lines are entirely blocked for this register.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {/* Mobile View */}
+                  <div className="block sm:hidden divide-y divide-slate-100">
+                    {OPERATIONAL_HOURS.map((hour: string) => {
+                      const isBreak = currentDoctor?.breaks?.includes(hour) ?? false;
+                      const filledBooking = bookings.find(b => (b.badge_id || b.doctorId) === currentDoctor?.badge_id && b.timeSlot === hour && b.preferredDate === selectedDate && b.status !== "cancelled");
 
-                  return (
-                    <div key={hour} className={`p-4 space-y-2 ${isBreak ? "bg-amber-50/20" : filledBooking ? "bg-slate-50/20" : ""}`}>
-                      <div className="flex justify-between items-center">
-                        <span className="font-bold text-xs text-slate-700 flex items-center gap-1.5"><Clock className="h-3.5 w-3.5 text-slate-400" /> {hour}</span>
-                        {isBreak && <Badge className="bg-amber-100 border-amber-200 hover:bg-amber-100 text-amber-800 text-[9px] font-medium">Break</Badge>}
-                        {filledBooking && getPatientLifecycleBadge(filledBooking.status)}
-                      </div>
-                      
-                      <div className="text-xs">
-                        {filledBooking ? (
-                          <div className="space-y-1">
-                            <p className="font-semibold text-slate-900">{filledBooking.patient_name}</p>
-                            
-                            <div className="mt-2 flex gap-1.5 flex-wrap">
-                              {filledBooking.status !== "checked_in" && filledBooking.status !== "present" && filledBooking.status !== "completed" ? (
-                                <Button size="sm" variant="outline" className="text-[10px] h-6 grow" onClick={() => handleStatusUpdate(filledBooking.id, "checked_in")}>
-                                  Check In Patient
-                                </Button>
-                              ) : filledBooking.status === "present" ? (
-                                <Badge className="bg-amber-100 border-amber-300 text-amber-800 text-[10px] py-1 font-semibold tracking-normal grow justify-center rounded-md shadow-none cursor-not-allowed">
-                                  In Consultation
-                                </Badge>
-                              ) : (
-                                <span className="text-[10px] text-slate-400 italic">Managed by Physician Portal</span>
-                              )}
-                            </div>
+                      return (
+                        <div key={hour} className={`p-4 space-y-2 ${isBreak ? "bg-amber-50/20" : filledBooking ? "bg-slate-50/20" : ""}`}>
+                          <div className="flex justify-between items-center">
+                            <span className="font-bold text-xs text-slate-700 flex items-center gap-1.5"><Clock className="h-3.5 w-3.5 text-slate-400" /> {hour}</span>
+                            {isBreak && <Badge className="bg-amber-100 border-amber-200 hover:bg-amber-100 text-amber-800 text-[9px] font-medium">Break</Badge>}
+                            {filledBooking && getPatientLifecycleBadge(filledBooking.status)}
                           </div>
-                        ) : !isBreak ? (
-                          <span className="text-slate-400 italic">Open time slot</span>
-                        ) : null}
-                      </div>
-
-                      {selectedPatient && !isBreak && !filledBooking && (
-                        <Button
-                          size="sm"
-                          disabled={!!isDepartmentMismatch}
-                          onClick={() => dispatchToSlot(hour)}
-                          className="w-full h-8 text-[11px] font-medium mt-2"
-                        >
-                          {isDepartmentMismatch ? "Department Locked" : "Schedule Patient"}
-                        </Button>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Desktop Table Layout */}
-              <Table className="hidden sm:table">
-                <TableHeader className="bg-slate-50 sticky top-0 backdrop-blur-sm z-10 border-b border-slate-200">
-                  <TableRow>
-                    <TableHead className="text-[10px] font-bold uppercase tracking-wider text-slate-400 py-3 pl-6 w-[120px]">Time Slot</TableHead>
-                    <TableHead className="text-[10px] font-bold uppercase tracking-wider text-slate-400 py-3">Scheduled Patient Context</TableHead>
-                    <TableHead className="text-[10px] font-bold uppercase tracking-wider text-slate-400 py-3 text-right pr-6 w-[200px]">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {OPERATIONAL_HOURS.map((hour: string) => {
-                    const isBreak = currentDoctor?.breaks?.includes(hour) ?? false;
-                    const filledBooking = bookings.find(b => (b.badge_id || b.doctorId) === currentDoctor?.badge_id && b.timeSlot === hour && b.preferredDate === selectedDate && b.status !== "cancelled");
-
-                    return (
-                      <TableRow key={hour} className={`border-b border-slate-100/80 ${isBreak ? "bg-amber-50/10" : filledBooking ? "bg-slate-50/20" : "hover:bg-slate-50/10"}`}>
-                        <TableCell className="font-semibold text-xs text-slate-700 py-3.5 pl-6">
-                          <span className="flex items-center gap-1.5"><Clock className="h-3 w-3 text-slate-400" /> {hour}</span>
-                        </TableCell>
-                        
-                        <TableCell className="py-3.5">
-                          {isBreak ? (
-                            <div className="text-[11px] font-medium text-amber-700 flex items-center gap-1.5 bg-amber-50/50 border border-amber-100 px-2.5 py-0.5 w-max rounded-md">
-                              <AlertCircle className="h-3 w-3 text-amber-500" /> Physician Rest Period
-                            </div>
-                          ) : filledBooking ? (
-                            <div className="flex items-center gap-3">
-                              <UserCheck className="h-4 w-4 text-blue-500 shrink-0" />
-                              <div className="space-y-0.5">
-                                <p className="text-xs font-bold text-slate-800">{filledBooking.patient_name}</p>
-                                <p className="text-[10px] text-slate-400 font-mono">{filledBooking.phone}</p>
+                          
+                          <div className="text-xs">
+                            {filledBooking ? (
+                              <div className="space-y-1">
+                                <p className="font-semibold text-slate-900">{filledBooking.patient_name}</p>
+                                
+                                <div className="mt-2 flex gap-1.5 flex-wrap">
+                                  {filledBooking.status !== "checked_in" && filledBooking.status !== "present" && filledBooking.status !== "completed" ? (
+                                    <Button size="sm" variant="outline" className="text-[10px] h-6 grow" onClick={() => handleStatusUpdate(filledBooking.id, "checked_in")}>
+                                      Check In Patient
+                                    </Button>
+                                  ) : filledBooking.status === "present" ? (
+                                    <Badge className="bg-amber-100 border-amber-300 text-amber-800 text-[10px] py-1 font-semibold tracking-normal grow justify-center rounded-md shadow-none cursor-not-allowed">
+                                      In Consultation
+                                    </Badge>
+                                  ) : (
+                                    <span className="text-[10px] text-slate-400 italic">Managed by Physician Portal</span>
+                                  )}
+                                </div>
                               </div>
-                            </div>
-                          ) : (
-                            <span className="text-[11px] text-slate-400 italic">No allocation assigned</span>
-                          )}
-                        </TableCell>
+                            ) : !isBreak ? (
+                              <span className="text-slate-400 italic">Open time slot</span>
+                            ) : null}
+                          </div>
 
-                        <TableCell className="py-3.5 text-right pr-6">
-                          {filledBooking ? (
-                            <div className="flex items-center justify-end gap-2">
-                              {getPatientLifecycleBadge(filledBooking.status)}
-                              {filledBooking.status !== "checked_in" && filledBooking.status !== "present" && filledBooking.status !== "completed" && (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => handleStatusUpdate(filledBooking.id, "checked_in")}
-                                  className="h-7 text-[11px] font-medium px-2.5"
-                                >
-                                  Check In
-                                </Button>
-                              )}
-                            </div>
-                          ) : !isBreak && selectedPatient ? (
+                          {selectedPatient && !isBreak && !filledBooking && (
                             <Button
                               size="sm"
                               disabled={!!isDepartmentMismatch}
                               onClick={() => dispatchToSlot(hour)}
-                              className="h-7 text-[11px] font-medium px-3 bg-blue-600 text-white hover:bg-blue-700"
+                              className="w-full h-8 text-[11px] font-medium mt-2"
                             >
-                              {isDepartmentMismatch ? "Locked" : "Book Slot"}
+                              {isDepartmentMismatch ? "Department Locked" : "Schedule Patient"}
                             </Button>
-                          ) : (
-                            <span className="text-[11px] text-slate-300">-</span>
                           )}
-                        </TableCell>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Desktop Table Layout */}
+                  <Table className="hidden sm:table">
+                    <TableHeader className="bg-slate-50 sticky top-0 backdrop-blur-sm z-10 border-b border-slate-200">
+                      <TableRow>
+                        <TableHead className="text-[10px] font-bold uppercase tracking-wider text-slate-400 py-3 pl-6 w-[120px]">Time Slot</TableHead>
+                        <TableHead className="text-[10px] font-bold uppercase tracking-wider text-slate-400 py-3">Scheduled Patient Context</TableHead>
+                        <TableHead className="text-[10px] font-bold uppercase tracking-wider text-slate-400 py-3 text-right pr-6 w-[200px]">Actions</TableHead>
                       </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {OPERATIONAL_HOURS.map((hour: string) => {
+                        const isBreak = currentDoctor?.breaks?.includes(hour) ?? false;
+                        const filledBooking = bookings.find(b => (b.badge_id || b.doctorId) === currentDoctor?.badge_id && b.timeSlot === hour && b.preferredDate === selectedDate && b.status !== "cancelled");
+
+                        return (
+                          <TableRow key={hour} className={`border-b border-slate-100/80 ${isBreak ? "bg-amber-50/10" : filledBooking ? "bg-slate-50/20" : "hover:bg-slate-50/10"}`}>
+                            <TableCell className="font-semibold text-xs text-slate-700 py-3.5 pl-6">
+                              <span className="flex items-center gap-1.5"><Clock className="h-3 w-3 text-slate-400" /> {hour}</span>
+                            </TableCell>
+                            
+                            <TableCell className="py-3.5">
+                              {isBreak ? (
+                                <div className="text-[11px] font-medium text-amber-700 flex items-center gap-1.5 bg-amber-50/50 border border-amber-100 px-2.5 py-0.5 w-max rounded-md">
+                                  <AlertCircle className="h-3 w-3 text-amber-500" /> Physician Rest Period
+                                </div>
+                              ) : filledBooking ? (
+                                <div className="flex items-center gap-3">
+                                  <UserCheck className="h-4 w-4 text-blue-500 shrink-0" />
+                                  <div className="space-y-0.5">
+                                    <p className="text-xs font-bold text-slate-800">{filledBooking.patient_name}</p>
+                                    <p className="text-[10px] text-slate-400 font-mono">{filledBooking.phone}</p>
+                                  </div>
+                                </div>
+                              ) : (
+                                <span className="text-[11px] text-slate-400 italic">No allocation assigned</span>
+                              )}
+                            </TableCell>
+
+                            <TableCell className="py-3.5 text-right pr-6">
+                              {filledBooking ? (
+                                <div className="flex items-center justify-end gap-2">
+                                  {getPatientLifecycleBadge(filledBooking.status)}
+                                  {filledBooking.status !== "checked_in" && filledBooking.status !== "present" && filledBooking.status !== "completed" && (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => handleStatusUpdate(filledBooking.id, "checked_in")}
+                                      className="h-7 text-[11px] font-medium px-2.5"
+                                    >
+                                      Check In
+                                    </Button>
+                                  )}
+                                </div>
+                              ) : !isBreak && selectedPatient ? (
+                                <Button
+                                  size="sm"
+                                  disabled={!!isDepartmentMismatch}
+                                  onClick={() => dispatchToSlot(hour)}
+                                  className="h-7 text-[11px] font-medium px-3 bg-blue-600 text-white hover:bg-blue-700"
+                                >
+                                  {isDepartmentMismatch ? "Locked" : "Book Slot"}
+                                </Button>
+                              ) : (
+                                <span className="text-[11px] text-slate-300">-</span>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </>
+              )}
             </CardContent>
           </Card>
         </div>

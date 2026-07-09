@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { OPERATIONAL_HOURS } from "@/hooks/useReceptionistDesk";
 import { useDoctor } from "@/hooks/useDoctor"; 
-import { useHospitalLogout } from "@/hooks/useHospitalLogout"; // 🌟 ADDED
+import { useHospitalLogout } from "@/hooks/useHospitalLogout";
 import {  
   Clock,  
   Calendar as CalendarIcon,  
@@ -15,11 +15,13 @@ import {
   User,  
   LogOut,  
   FileText,
-  CheckCircle 
+  CheckCircle,
+  PlusCircle,
+  XCircle
 } from "lucide-react";
 
 export default function DoctorDashboard() {
-  const { performLogout } = useHospitalLogout(); // 🌟 INITIALIZED Hook
+  const { performLogout } = useHospitalLogout();
   const {
     identity,
     identityLoading,
@@ -28,6 +30,9 @@ export default function DoctorDashboard() {
     currentDoctor,
     dailyAppointments = [], 
     handleStatusUpdate,
+    toggleBreak, //  UI hook binding
+    doctorLeaves = [], //  ADDED HERE
+    requestLeave,
   } = useDoctor();
 
   if (identityLoading || !currentDoctor) {
@@ -77,7 +82,7 @@ export default function DoctorDashboard() {
           <Button
             size="sm"
             variant="ghost"
-            onClick={performLogout} // 🌟 CHANGED
+            onClick={performLogout}
             className="h-10 border border-slate-200 rounded-xl px-3 bg-white text-slate-500 hover:text-rose-600 text-xs font-semibold shadow-sm transition-all flex items-center justify-center gap-1.5"
           >
             <LogOut className="h-4 w-4" />
@@ -92,7 +97,37 @@ export default function DoctorDashboard() {
         {/* LEFT COLUMN: DAILY SUMMARY METRICS */}
         <div className="space-y-4 lg:col-span-1">
           <h3 className="text-xs font-bold uppercase text-slate-400 tracking-wider">Day at a Glance</h3>
-          
+
+
+          <Card className="border-slate-200/80 shadow-sm rounded-xl bg-white mt-4">
+      <CardContent className="p-5 space-y-3">
+        <div className="space-y-1">
+          <h4 className="text-xs font-bold text-slate-700">Schedule Time Off</h4>
+          <p className="text-[11px] text-slate-500 leading-normal">
+            Mark <span className="font-semibold text-slate-700">{selectedDate}</span> as an official leave day. This will lock appointment intakes.
+          </p>
+        </div>
+              
+          {/* Check if the doctor is currently on leave for the active date filter view */}
+          {doctorLeaves.some((leave: any) => leave.leave_date === selectedDate) ? (
+            <div className="text-[11px] font-bold text-rose-700 bg-rose-50 border border-rose-100 p-2.5 rounded-lg text-center">
+              ✈️ Scheduled Off-Duty on this Date
+            </div>
+          ) : (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                const confirmation = window.confirm(`Are you sure you want to mark ${selectedDate} as an Off-Duty Leave day?`);
+                if (confirmation) requestLeave(selectedDate, "Physician Request Leave");
+              }}
+              className="w-full h-8 text-[11px] font-semibold text-slate-600 hover:text-rose-600 hover:bg-rose-50/50 border border-slate-200 shadow-none rounded-md transition-all"
+            >
+              Block Day / Set Leave
+            </Button>
+          )}
+        </CardContent>
+      </Card>
           <Card className="border-slate-200/80 shadow-sm rounded-xl bg-white">
             <CardContent className="p-5 space-y-4">
               <div className="flex justify-between items-center border-b border-slate-50 pb-3">
@@ -152,7 +187,18 @@ export default function DoctorDashboard() {
                               <p className="text-[10px] text-amber-600 font-medium">Clinic routing is automatically paused during this block.</p>
                             </div>
                           </div>
-                          <Badge className="bg-amber-100/80 hover:bg-amber-100/80 text-amber-900 text-[10px] font-bold border-transparent shadow-none">Unavailable</Badge>
+                          <div className="flex items-center gap-2">
+                            <Badge className="bg-amber-100/80 hover:bg-amber-100/80 text-amber-900 text-[10px] font-bold border-transparent shadow-none group-hover:hidden">Unavailable</Badge>
+                            {/* 🌟 Dynamic break cancel button hidden till block row is hovered */}
+                            <Button 
+                              size="sm" 
+                              variant="ghost" 
+                              onClick={() => toggleBreak(hour)}
+                              className="hidden group-hover:flex h-6 text-[10px] text-rose-600 hover:bg-rose-50 border border-rose-200 font-bold px-2 rounded-md transition-all gap-1 items-center"
+                            >
+                              <XCircle className="h-3 w-3" /> Clear Break
+                            </Button>
+                          </div>
                         </div>
                       ) : appointment ? (
                         <div className={`border rounded-xl px-4 py-3 flex flex-col sm:flex-row gap-3 sm:items-center justify-between shadow-sm transition-all ${
@@ -217,8 +263,19 @@ export default function DoctorDashboard() {
                           </div>
                         </div>
                       ) : (
-                        <div className="text-[11px] text-slate-400 font-normal italic pl-2 group-hover:text-slate-500 transition-colors flex items-center gap-1">
-                          No active appointments assigned to this time frame.
+                        /* 🌟 Unscheduled open slot element now triggers dynamic assignment */
+                        <div className="flex items-center justify-between pl-2">
+                          <div className="text-[11px] text-slate-400 font-normal italic group-hover:text-slate-500 transition-colors flex items-center gap-1">
+                            No active appointments assigned to this time frame.
+                          </div>
+                          <Button 
+                            size="sm" 
+                            variant="ghost" 
+                            onClick={() => toggleBreak(hour)}
+                            className="opacity-0 group-hover:opacity-100 h-6 text-[10px] text-amber-700 bg-amber-50/50 hover:bg-amber-100 border border-amber-200 font-bold px-2 rounded-md transition-all gap-1 flex items-center"
+                          >
+                            <PlusCircle className="h-3 w-3" /> Set Break Block
+                          </Button>
                         </div>
                       )}
                     </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useGetIdentity, useLogout, useList } from "@refinedev/core";
+import { useGetIdentity, useLogout, useList, useUpdate, useCreate } from "@refinedev/core";
 import { useBookingOperations } from "@/hooks/useBookingOperations";
 import { useRouter } from "next/navigation";
 import { BookingRecord, Doctor } from "@/types";
@@ -16,6 +16,8 @@ export function useDoctor() {
   const router = useRouter();
   const { updateBookingStatus } = useBookingOperations();
   const { mutate: logout } = useLogout();
+  const { mutate: updateDoctor } = useUpdate();
+  const { mutate: createLeave } = useCreate(); // 🌟 Hook to insert leaves
   
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split("T")[0]);
   const { data: identity, isLoading: identityLoading } = useGetIdentity<UseDoctorIdentity>();
@@ -33,11 +35,58 @@ export function useDoctor() {
     queryOptions: { enabled: !!activeDoctorId }
   });
 
-  const { result: doctorInfo } = useList<Doctor>({
+  const { result: doctorInfo, query: doctorQuery } = useList<Doctor>({
     resource: "doctors",
     filters: [{ field: "badge_id", operator: "eq", value: activeDoctorId }],
     queryOptions: { enabled: !!activeDoctorId }
   });
+
+  // 🌟 Fetch upcoming leaves for this doctor
+  const { result: leavesResult, query: leavesQuery } = useList({
+    resource: "leaves",
+    filters: [{ field: "badge_id", operator: "eq", value: activeDoctorId }],
+    queryOptions: { enabled: !!activeDoctorId }
+  });
+
+  const currentDoctor = doctorInfo?.data?.[0];
+
+  const toggleBreak = async (hour: string) => {
+    const doctorIdentifier = currentDoctor?.badge_id || activeDoctorId;
+    if (!doctorIdentifier) return;
+
+    const currentBreaks = (currentDoctor?.breaks as string[]) || [];
+    let updatedBreaks: string[];
+
+    if (currentBreaks.includes(hour)) {
+      updatedBreaks = currentBreaks.filter((b) => b !== hour);
+    } else {
+      updatedBreaks = [...currentBreaks, hour];
+    }
+
+    updateDoctor({
+      resource: "doctors",
+      id: doctorIdentifier,
+      values: { breaks: updatedBreaks },
+    });
+  };
+
+  // 🌟 Dynamic Leave Request Function
+  const requestLeave = (dateString: string, reason: string = "Personal Leave") => {
+    if (!activeDoctorId) return;
+    
+    createLeave({
+      resource: "leaves",
+      values: {
+        badge_id: activeDoctorId,
+        leave_date: dateString,
+        reason: reason
+      },
+      successNotification: () => ({
+        message: "Leave Scheduled Successfully",
+        type: "success"
+      })
+    });
+  };
 
   const handleEndShift = () => {
     logout({}, {
@@ -50,12 +99,15 @@ export function useDoctor() {
 
   return {
     identity,
-    identityLoading: identityLoading || bookingsQuery.isLoading,
+    identityLoading: identityLoading || bookingsQuery.isLoading || doctorQuery.isLoading || leavesQuery.isLoading,
     selectedDate,
     setSelectedDate,
-    currentDoctor: doctorInfo?.data?.[0] || { badge_id: activeDoctorId, name: identity?.name || "Physician Staff", specialty: "General Clinic" },
+    currentDoctor: currentDoctor || { badge_id: activeDoctorId, name: identity?.name || "Physician Staff", specialty: "General Clinic", breaks: [] },
     dailyAppointments: bookingsResult?.data || [],
+    doctorLeaves: leavesResult?.data || [], // 🌟 Exposed leave array
     handleEndShift,
     handleStatusUpdate: updateBookingStatus,
+    toggleBreak,
+    requestLeave, //  Exposed function to trigger leaves
   };
 }

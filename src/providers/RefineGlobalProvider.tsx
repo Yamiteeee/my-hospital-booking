@@ -110,12 +110,24 @@ export function RefineGlobalProvider({ children }: { children: React.ReactNode }
     <Refine
       dataProvider={dataProvider(supabaseClient)}
       authProvider={secureSupabaseAuthProvider}
-      resources={[
-        {
-          name: "bookings",
-          meta: { label: "Intake Pipeline Queues" }
-        },
-      ]}
+              resources={[
+            {
+              name: "bookings",
+              meta: { label: "Intake Pipeline Queues" }
+            },
+            {
+              name: "doctors",
+              meta: { 
+                label: "Medical Staff Registry",
+                idColumnName: "badge_id"
+              }
+            },
+            // ADDED THE LEAVES RESOURCE CONFIGURATION HERE
+            {
+              name: "leaves",
+              meta: { label: "Staff Time Off Records" }
+            }
+          ]}
       options={{ syncWithLocation: false }}
     >
       {children}
