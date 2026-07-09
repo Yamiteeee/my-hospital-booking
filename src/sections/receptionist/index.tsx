@@ -6,11 +6,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { OPERATIONAL_HOURS, BookingRecord, Doctor } from "@/hooks/useReceptionistDesk";
-import { useDispatchEngine } from "@/hooks/useDispatchEngine";
+import { useReceptionistDesk, OPERATIONAL_HOURS } from "@/hooks/useReceptionistDesk";
+import { useHospitalLogout } from "@/hooks/useHospitalLogout"; // 🌟 ADDED
 import { SPECIALTY_ROUTING_MAP } from "@/utils/normalization";
-import { useRouter } from "next/navigation"; 
-import { useLogout } from "@refinedev/core"; 
+import { BookingRecord, Doctor } from "@/types";
 import { 
   ShieldAlert, 
   UserCheck, 
@@ -26,12 +25,9 @@ import {
 } from "lucide-react";
 
 export default function ReceptionistSection() {
-  const router = useRouter(); 
-  const { mutate: logout } = useLogout(); 
-
+  const { performLogout } = useHospitalLogout(); // 🌟 INITIALIZED Hook
+  
   const {
-    isAuthenticated,
-    authChecking,
     bookings,
     doctors,
     pendingQueue,
@@ -41,30 +37,17 @@ export default function ReceptionistSection() {
     activeDoctorTab,
     setActiveDoctorTab,
     currentDoctor,
-    targetSpecialty,
     isDepartmentMismatch,
     selectedDate,
     setSelectedDate,
     handleStatusUpdate,
     handleDoctorAvailabilityUpdate,
     dispatchToSlot
-  } = useDispatchEngine();
+  } = useReceptionistDesk();
 
-  const handleEndShift = () => {
-    logout(
-      {}, 
-      {
-        onSuccess: () => {
-          router.push("/login");
-          router.refresh();
-        },
-        onError: (err) => {
-          console.warn("Redirecting fallback active:", err);
-          router.push("/login");
-        }
-      }
-    );
-  };
+  const targetSpecialty = selectedPatient?.normalized_reason 
+    ? SPECIALTY_ROUTING_MAP[selectedPatient.normalized_reason as keyof typeof SPECIALTY_ROUTING_MAP] 
+    : "General";
 
   const getAvailabilityBadge = (status: Doctor["availability_status"]) => {
     switch (status) {
@@ -94,14 +77,6 @@ export default function ReceptionistSection() {
     }
   };
 
-  if (authChecking) {
-    return <div className="p-8 text-center text-xs tracking-widest uppercase text-slate-400 animate-pulse pt-24">Verifying Credentials...</div>;
-  }
-  
-  if (!isAuthenticated) {
-    return <div className="p-8 max-w-md mx-auto text-center font-bold text-rose-600">Access Denied</div>;
-  }
-
   return (
     <div className="p-4 sm:p-8 max-w-7xl mx-auto space-y-6 sm:space-y-8 animate-in fade-in duration-200">
       
@@ -120,7 +95,7 @@ export default function ReceptionistSection() {
           <Button
             size="sm"
             variant="ghost"
-            onClick={handleEndShift}
+            onClick={performLogout} // 🌟 CHANGED
             className="h-10 border border-slate-200 rounded-xl px-3 bg-white text-slate-500 hover:text-rose-600 text-xs font-semibold shadow-sm transition-all flex items-center justify-center gap-1.5"
           >
             <LogOut className="h-4 w-4" />
@@ -191,13 +166,13 @@ export default function ReceptionistSection() {
             <span className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block">Available Physicians</span>
             <div className="flex flex-wrap gap-2 bg-slate-50 border border-slate-200/60 p-1.5 rounded-xl">
               {doctors.map((doc: Doctor) => {
-                const isActive = activeDoctorTab === doc.badge_id;
+                const isActive = activeDoctorTab === doc.badge_id || activeDoctorTab === doc.id;
                 const initials = doc.name?.split(".").pop()?.trim().charAt(0) || "D";
 
                 return (
                   <button
-                    key={doc.badge_id}
-                    onClick={() => setActiveDoctorTab(doc.badge_id)}
+                    key={doc.badge_id || doc.id}
+                    onClick={() => setActiveDoctorTab(doc.badge_id || doc.id)}
                     className={`px-3 py-2 text-xs font-semibold rounded-lg transition-all flex items-center gap-3 border grow sm:grow-0 ${
                       isActive 
                         ? "bg-white text-slate-900 shadow-sm border-slate-200" 
@@ -323,7 +298,7 @@ export default function ReceptionistSection() {
                       {selectedPatient && !isBreak && !filledBooking && (
                         <Button
                           size="sm"
-                          disabled={isDepartmentMismatch}
+                          disabled={!!isDepartmentMismatch}
                           onClick={() => dispatchToSlot(hour)}
                           className="w-full h-8 text-[11px] font-medium mt-2"
                         >
@@ -364,49 +339,41 @@ export default function ReceptionistSection() {
                             <div className="flex items-center gap-3">
                               <UserCheck className="h-4 w-4 text-blue-500 shrink-0" />
                               <div className="space-y-0.5">
-                                <p className="text-xs font-semibold text-slate-900">{filledBooking.patient_name}</p>
-                                <p className="text-[11px] text-slate-500 max-w-[340px] truncate">{filledBooking.reason}</p>
+                                <p className="text-xs font-bold text-slate-800">{filledBooking.patient_name}</p>
+                                <p className="text-[10px] text-slate-400 font-mono">{filledBooking.phone}</p>
                               </div>
-                              {getPatientLifecycleBadge(filledBooking.status)}
                             </div>
                           ) : (
-                            <span className="text-[11px] text-slate-400 font-normal italic">Available Appointment Block</span>
+                            <span className="text-[11px] text-slate-400 italic">No allocation assigned</span>
                           )}
                         </TableCell>
 
                         <TableCell className="py-3.5 text-right pr-6">
-                          {isBreak ? null : filledBooking ? (
-                            <div className="flex justify-end gap-1.5">
-                              {filledBooking.status !== "checked_in" && filledBooking.status !== "present" && filledBooking.status !== "completed" ? (
+                          {filledBooking ? (
+                            <div className="flex items-center justify-end gap-2">
+                              {getPatientLifecycleBadge(filledBooking.status)}
+                              {filledBooking.status !== "checked_in" && filledBooking.status !== "present" && filledBooking.status !== "completed" && (
                                 <Button
                                   size="sm"
                                   variant="outline"
                                   onClick={() => handleStatusUpdate(filledBooking.id, "checked_in")}
-                                  className="h-7 px-2.5 text-[11px] font-medium rounded-lg text-sky-700 border-slate-200 hover:bg-sky-50"
+                                  className="h-7 text-[11px] font-medium px-2.5"
                                 >
                                   Check In
                                 </Button>
-                              ) : filledBooking.status === "present" ? (
-                                <Badge className="bg-amber-50 border-amber-200 text-amber-700 text-[10px] font-semibold h-7 px-3 flex items-center rounded-lg shadow-none cursor-not-allowed select-none">
-                                  In Consultation
-                                </Badge>
-                              ) : (
-                                <span className="text-[11px] text-slate-400 font-normal italic pr-2">
-                                  {filledBooking.status === "checked_in" ? "Awaiting Doctor" : "Physician Session Active"}
-                                </span>
                               )}
                             </div>
-                          ) : selectedPatient ? (
+                          ) : !isBreak && selectedPatient ? (
                             <Button
                               size="sm"
-                              disabled={isDepartmentMismatch}
+                              disabled={!!isDepartmentMismatch}
                               onClick={() => dispatchToSlot(hour)}
-                              className="h-7 px-3 text-[11px] font-medium rounded-lg"
+                              className="h-7 text-[11px] font-medium px-3 bg-blue-600 text-white hover:bg-blue-700"
                             >
                               {isDepartmentMismatch ? "Locked" : "Book Slot"}
                             </Button>
                           ) : (
-                            <span className="text-[10px] text-slate-300 font-medium uppercase tracking-wider">Empty</span>
+                            <span className="text-[11px] text-slate-300">-</span>
                           )}
                         </TableCell>
                       </TableRow>

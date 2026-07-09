@@ -1,10 +1,11 @@
 "use client";
 
-import { useGetIdentity, useLogout } from "@refinedev/core";
-import { useDispatchEngine } from "@/hooks/useDispatchEngine";
+import { useState } from "react";
+import { useGetIdentity, useLogout, useList } from "@refinedev/core";
+import { useBookingOperations } from "@/hooks/useBookingOperations";
 import { useRouter } from "next/navigation";
+import { BookingRecord, Doctor } from "@/types";
 
-// Define the interface to mirror your custom badge-id profile architecture
 export interface UseDoctorIdentity {
   id?: string;
   badge_id?: string;
@@ -13,76 +14,48 @@ export interface UseDoctorIdentity {
 
 export function useDoctor() {
   const router = useRouter();
-  const { data: identity, isLoading: identityLoading } = useGetIdentity<UseDoctorIdentity>();
+  const { updateBookingStatus } = useBookingOperations();
   const { mutate: logout } = useLogout();
+  
+  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split("T")[0]);
+  const { data: identity, isLoading: identityLoading } = useGetIdentity<UseDoctorIdentity>();
 
-  const {
-    bookings,
-    doctors,
-    selectedDate,
-    setSelectedDate,
-    handleStatusUpdate: baseStatusUpdate, // Alias the base engine update method
-  } = useDispatchEngine();
+  const activeDoctorId = (identity?.badge_id || identity?.id || "").toUpperCase();
 
-  // Handle shift end with a deterministic navigation sequence
+  // Load ONLY appointments dispatched directly to this doctor
+  const { result: bookingsResult, query: bookingsQuery } = useList<BookingRecord>({
+    resource: "bookings",
+    filters: [
+      { field: "doctorId", operator: "eq", value: activeDoctorId },
+      { field: "preferredDate", operator: "eq", value: selectedDate },
+      { field: "status", operator: "ne", value: "cancelled" }
+    ],
+    queryOptions: { enabled: !!activeDoctorId }
+  });
+
+  const { result: doctorInfo } = useList<Doctor>({
+    resource: "doctors",
+    filters: [{ field: "badge_id", operator: "eq", value: activeDoctorId }],
+    queryOptions: { enabled: !!activeDoctorId }
+  });
+
   const handleEndShift = () => {
-    logout(
-      {},
-      {
-        onSuccess: () => {
-          router.push("/login");
-          router.refresh();
-        },
-        onError: (err) => {
-          console.warn("Soft logout redirect fallback triggered.", err);
-          router.push("/login");
-        },
+    logout({}, {
+      onSuccess: () => {
+        router.push("/login");
+        router.refresh();
       }
-    );
-  };
-
-  // Compute Active Identifiers safely from badge_id context
-  const activeDoctorId = (identity?.badge_id || identity?.id || "DOC-1").toUpperCase();
-
-  // Cross-reference current doctor profile
-  const currentDoctor = doctors?.find(
-    (d: any) => (d?.badge_id || d?.id)?.toUpperCase() === activeDoctorId
-  ) || {
-    badge_id: activeDoctorId,
-    name: identity?.name || "Physician Staff",
-    specialty: "General Clinic",
-    breaks: [],
-  };
-
-  // Filter out relevant patient appointments for the chosen calendar window
-  // 🌟 MODIFIED: Removed strict exclusions so finished appointments ("completed") still render inside the agenda grid
-  const dailyAppointments = (bookings || []).filter(
-    (b) =>
-      ((b as any).doctorId || (b as any).badge_id || (b as any).doctor_id)?.toUpperCase() === activeDoctorId &&
-      b.preferredDate === selectedDate &&
-      b.status !== "cancelled"
-  );
-
-  // 🌟 UPDATED LIFE-CYCLE METHOD SIGNATURE
-  const handleStatusUpdate = async (
-    bookingId: string, 
-    status: "pending" | "confirmed" | "cancelled" | "checked_in" | "present" | "completed"
-  ) => {
-    try {
-      await baseStatusUpdate(bookingId, status as any);
-    } catch (error) {
-      console.error("Failed to update patient status from physician terminal:", error);
-    }
+    });
   };
 
   return {
     identity,
-    identityLoading,
+    identityLoading: identityLoading || bookingsQuery.isLoading,
     selectedDate,
     setSelectedDate,
-    currentDoctor,
-    dailyAppointments,
+    currentDoctor: doctorInfo?.data?.[0] || { badge_id: activeDoctorId, name: identity?.name || "Physician Staff", specialty: "General Clinic" },
+    dailyAppointments: bookingsResult?.data || [],
     handleEndShift,
-    handleStatusUpdate,
+    handleStatusUpdate: updateBookingStatus,
   };
 }

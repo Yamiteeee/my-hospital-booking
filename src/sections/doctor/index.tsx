@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { OPERATIONAL_HOURS } from "@/hooks/useReceptionistDesk";
 import { useDoctor } from "@/hooks/useDoctor"; 
+import { useHospitalLogout } from "@/hooks/useHospitalLogout"; // 🌟 ADDED
 import {  
   Clock,  
   Calendar as CalendarIcon,  
@@ -18,6 +19,7 @@ import {
 } from "lucide-react";
 
 export default function DoctorDashboard() {
+  const { performLogout } = useHospitalLogout(); // 🌟 INITIALIZED Hook
   const {
     identity,
     identityLoading,
@@ -25,7 +27,6 @@ export default function DoctorDashboard() {
     setSelectedDate,
     currentDoctor,
     dailyAppointments = [], 
-    handleEndShift,
     handleStatusUpdate,
   } = useDoctor();
 
@@ -76,7 +77,7 @@ export default function DoctorDashboard() {
           <Button
             size="sm"
             variant="ghost"
-            onClick={handleEndShift} 
+            onClick={performLogout} // 🌟 CHANGED
             className="h-10 border border-slate-200 rounded-xl px-3 bg-white text-slate-500 hover:text-rose-600 text-xs font-semibold shadow-sm transition-all flex items-center justify-center gap-1.5"
           >
             <LogOut className="h-4 w-4" />
@@ -128,21 +129,17 @@ export default function DoctorDashboard() {
                 const isBreak = (currentDoctor?.breaks as string[])?.includes(hour) ?? false;
                 const appointment = dailyAppointments.find(b => b.timeSlot === hour);
                 
-                // 🌟 WORKFLOW LIFE-CYCLE CONTROLS
                 const isWaiting = appointment?.status === "checked_in";
                 const inConsultation = appointment?.status === "present";
                 const isFinished = appointment?.status === "completed";
 
                 return (
                   <div key={hour} className="flex min-h-[76px] transition-all hover:bg-slate-50/30 group">
-                    
-                    {/* Left chronological ladder step marker */}
                     <div className="w-[85px] sm:w-[100px] border-r border-slate-100 p-4 shrink-0 flex items-start gap-1.5 justify-end text-slate-400 font-semibold text-xs tracking-tight bg-slate-50/40 select-none">
                       <Clock className="h-3.5 w-3.5 mt-0.5 opacity-60" />
                       {hour}
                     </div>
 
-                    {/* Right allocation contents container */}
                     <div className="flex-1 p-3 flex flex-col justify-center">
                       {isBreak ? (
                         <div className="bg-amber-50/40 border border-amber-100/70 text-amber-800 rounded-xl px-4 py-2.5 flex items-center justify-between animate-in fade-in duration-100">
@@ -157,7 +154,6 @@ export default function DoctorDashboard() {
                           </div>
                           <Badge className="bg-amber-100/80 hover:bg-amber-100/80 text-amber-900 text-[10px] font-bold border-transparent shadow-none">Unavailable</Badge>
                         </div>
-
                       ) : appointment ? (
                         <div className={`border rounded-xl px-4 py-3 flex flex-col sm:flex-row gap-3 sm:items-center justify-between shadow-sm transition-all ${
                           inConsultation 
@@ -191,7 +187,6 @@ export default function DoctorDashboard() {
                             </div>
                           </div>
 
-                          {/* 🌟 SEQUENTIAL PIPELINE ACTIONS */}
                           <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
                             {isWaiting && (
                               <Button
@@ -221,14 +216,12 @@ export default function DoctorDashboard() {
                             )}
                           </div>
                         </div>
-
                       ) : (
                         <div className="text-[11px] text-slate-400 font-normal italic pl-2 group-hover:text-slate-500 transition-colors flex items-center gap-1">
                           No active appointments assigned to this time frame.
                         </div>
                       )}
                     </div>
-
                   </div>
                 );
               })}

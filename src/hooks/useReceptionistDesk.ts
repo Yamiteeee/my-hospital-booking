@@ -1,30 +1,10 @@
 "use client";
 
-import { useTable, useUpdate, useList } from "@refinedev/core";
-import { NormalizedReason } from "@/utils/normalization";
-
-export interface BookingRecord {
-  id: string;
-  patient_name: string;
-  phone: string;
-  reason: string;
-  normalized_reason?: NormalizedReason;
-  status: "pending" | "confirmed" | "cancelled" | "checked_in" | "present" | "completed";
-  doctorId: string | null;   
-  badge_id: string | null;   
-  timeSlot: string | null;
-  preferredDate?: string;
-  completed_at?: string | null; 
-}
-
-export interface Doctor {
-  id: string;
-  badge_id: string; 
-  name: string;
-  specialty: string;
-  breaks: string[];
-  availability_status: "available" | "lunch_break" | "rest_time" | "early_out"; 
-}
+import { useState, useEffect } from "react";
+import { useTable, useList, useUpdate } from "@refinedev/core";
+import { useBookingOperations } from "@/hooks/useBookingOperations";
+import { SPECIALTY_ROUTING_MAP } from "@/utils/normalization";
+import { BookingRecord, Doctor } from "@/types";
 
 export const OPERATIONAL_HOURS = [
   "08:00", "08:30", "09:00", "09:30", "10:00", "10:30", "11:00", "11:30",
@@ -33,76 +13,54 @@ export const OPERATIONAL_HOURS = [
 ];
 
 export function useReceptionistDesk() {
-  // 1. Live-fetch bookings from Supabase
+  const { updateBookingStatus, dispatchToDoctorSlot } = useBookingOperations();
+  const { mutate: updateDoctorMutation } = useUpdate();
+
+  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split("T")[0]);
+  const [selectedPatient, setSelectedPatient] = useState<BookingRecord | null>(null);
+  const [activeDoctorTab, setActiveDoctorTab] = useState<string>(""); 
+
   const { tableQuery } = useTable<BookingRecord>({
     resource: "bookings",
     sorters: { initial: [{ field: "created_at", order: "desc" }] }
   });
 
-  // 2. Live-fetch doctors from Supabase
   const { result: doctorsResult, query: doctorsQuery } = useList<Doctor>({
     resource: "doctors",
     pagination: { mode: "off" } 
   });
 
-  const { mutate } = useUpdate();
-
   const bookings = tableQuery?.data?.data ?? [];
   const doctors = doctorsResult?.data ?? [];
-  const isLoading = tableQuery?.isLoading || doctorsQuery?.isLoading;
 
+  useEffect(() => {
+    if (!activeDoctorTab && doctors.length > 0) {
+      const firstId = doctors[0].badge_id || doctors[0].id;
+      if (firstId) setActiveDoctorTab(firstId);
+    }
+  }, [doctors, activeDoctorTab]);
 
+  const currentDoctor = doctors.find((d) => d.id === activeDoctorTab || d.badge_id === activeDoctorTab) || doctors[0];
+  const pendingQueue = bookings.filter((b) => b.status === "pending" || !b.status);
 
-const handleDispatchAppointment = (
-    id: string, 
-    doctorBadgeId: string, 
-    timeSlot: string, 
-    preferredDate: string,
-    onSuccessCallback?: () => void
-  ) => {
-    mutate(
-      {
-        resource: "bookings",
-        id: id,
-        values: { 
-          status: "pending", // 🌟 CHANGED from "confirmed" to match your database check constraints
-          doctorId: doctorBadgeId, 
-          timeSlot: timeSlot,      
-          preferredDate: preferredDate 
-        },
-        mutationMode: "optimistic",
-      },
-      {
-        onSuccess: () => {
-          if (onSuccessCallback) onSuccessCallback();
-        },
-        onError: (error) => {
-          console.error("Critical dispatch error caught during transaction payload sync:", error);
-        }
-      }
-    );
+  const getDepartmentMismatchForBooking = (booking: BookingRecord | null) => {
+    if (!booking?.normalized_reason || !currentDoctor) return false;
+    const targetDept = SPECIALTY_ROUTING_MAP[booking.normalized_reason as keyof typeof SPECIALTY_ROUTING_MAP];
+    return targetDept && currentDoctor.specialty !== targetDept;
   };
 
-  
-  // Automatically builds/injects full ISO strings when consultation finishes
-  const handleStatusUpdate = (id: string, nextStatus: BookingRecord["status"]) => {
-    const updateValues: Record<string, any> = { status: nextStatus };
+  const dispatchToSlot = (hour: string) => {
+    if (!selectedPatient || !currentDoctor) return;
+    const targetDocId = currentDoctor.badge_id || currentDoctor.id;
+    if (getDepartmentMismatchForBooking(selectedPatient)) return;
 
-    if (nextStatus === "completed") {
-      updateValues.completed_at = new Date().toISOString();
-    }
-
-    mutate({
-      resource: "bookings",
-      id: id,
-      values: updateValues,
-      mutationMode: "optimistic",
+    dispatchToDoctorSlot(selectedPatient.id, targetDocId, hour, selectedDate, () => {
+      setSelectedPatient(null);
     });
   };
 
-  // Modifies a doctor's duty availability status flags
   const handleDoctorAvailabilityUpdate = (doctorId: string, nextAvailability: Doctor["availability_status"]) => {
-    mutate({
+    updateDoctorMutation({
       resource: "doctors",
       id: doctorId,
       values: { availability_status: nextAvailability },
@@ -111,11 +69,11 @@ const handleDispatchAppointment = (
   };
 
   return {
-    bookings,
-    doctors, 
-    isLoading,
-    handleStatusUpdate,
-    handleDoctorAvailabilityUpdate, 
-    handleDispatchAppointment 
+    bookings, doctors, pendingQueue,
+    isLoading: tableQuery?.isLoading || doctorsQuery?.isLoading,
+    selectedPatient, setSelectedPatient, activeDoctorTab, setActiveDoctorTab,
+    currentDoctor, isDepartmentMismatch: getDepartmentMismatchForBooking(selectedPatient),
+    getDepartmentMismatchForBooking, handleStatusUpdate: updateBookingStatus,
+    handleDoctorAvailabilityUpdate, dispatchToSlot, selectedDate, setSelectedDate
   };
 }

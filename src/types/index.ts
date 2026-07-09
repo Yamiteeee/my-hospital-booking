@@ -19,21 +19,32 @@ export interface Patient {
   normalized_reason?: string;
 }
 
-export interface Booking {
+// 🌟 RECONCILED: Matches the Supabase status check constraints and your hook properties
+export interface BookingRecord {
   id: string;
-  doctorId: string;
-  timeSlot: string;
   patient_name: string;
+  phone: string;
   reason: string;
-  status: "pending" | "checked-in" | "cancelled";
+  normalized_reason?: string;
+  status: "pending" | "confirmed" | "cancelled" | "checked_in" | "present" | "completed";
+  doctorId: string | null;   
+  badge_id: string | null;   
+  timeSlot: string | null;
+  preferredDate?: string;
+  completed_at?: string | null; 
 }
 
+// Alias to maintain full backward compatibility with any older visual components referencing 'Booking'
+export type Booking = BookingRecord;
+
+// 🌟 RECONCILED: Includes availability status fields to fix component rendering tracks
 export interface Doctor {
- id: string;
-  badge_id?: string; // 🌟 Support both column naming conventions safely
-  name?: string;
+  id: string;
+  badge_id: string; // Made standard for matching operations
+  name: string;
   specialty: string;
   breaks: string[];
+  availability_status: "available" | "lunch_break" | "rest_time" | "early_out"; 
   profiles?: {
     name: string;
   };

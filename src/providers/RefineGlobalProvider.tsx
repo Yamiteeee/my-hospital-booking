@@ -14,17 +14,16 @@ const secureSupabaseAuthProvider: AuthProvider = {
       };
     }
 
-   // Add these logs right around your query block to spy on the transaction:
-console.log("Searching database for badge_id matching:", companyId.trim());
+    console.log("Searching database for badge_id matching:", companyId.trim());
 
-const { data: profile, error } = await supabaseClient
-  .from("profiles")
-  .select("badge_id, role, name") // 🌟 Changed 'id' to 'badge_id'
-  .ilike("badge_id", companyId.trim())
-  .maybeSingle();
+    const { data: profile, error } = await supabaseClient
+      .from("profiles")
+      .select("badge_id, role, name")
+      .ilike("badge_id", companyId.trim())
+      .maybeSingle();
 
-console.log("Database Response Data:", profile);
-console.log("Database Response Error:", error);
+    console.log("Database Response Data:", profile);
+    console.log("Database Response Error:", error);
 
     if (error || !profile) {
       return {
@@ -33,23 +32,51 @@ console.log("Database Response Error:", error);
       };
     }
 
-    // 2. Save the matching profile locally to persist the session
+    // Persist session to localStorage
     localStorage.setItem("hospital_user_session", JSON.stringify(profile));
+    
+    // Set cookie for middleware route guarding
+    document.cookie = `hospital_user_session=${profile.role}; path=/; max-age=86400; SameSite=Strict; Secure`;
 
-    // 3. Automatically route them based on their database row string role
     const redirectTarget = profile.role === "doctor" ? "/doctor" : "/receptionist";
     return { success: true, redirectTo: redirectTarget };
   },
 
   logout: async () => {
     localStorage.removeItem("hospital_user_session");
+    document.cookie = "hospital_user_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
     return { success: true, redirectTo: "/login" };
   },
+check: async () => {
+    if (typeof window === "undefined") return { authenticated: false, redirectTo: "/login" };
 
-  check: async () => {
-    // Session is valid if the metadata exists in localStorage
     const session = localStorage.getItem("hospital_user_session");
-    return session ? { authenticated: true } : { authenticated: false, redirectTo: "/login" };
+    
+    // 🌟 READ THE ACTUAL LIVE COOKIE
+    const cookieValue = document.cookie
+      .split("; ")
+      .find((row) => row.startsWith("hospital_user_session="))
+      ?.split("=")[1];
+
+    // If either the cookie or local session is missing, fail fast
+    if (!session || !cookieValue) {
+      // Clean up remnants to avoid partial state contamination
+      localStorage.removeItem("hospital_user_session");
+      return { authenticated: false, redirectTo: "/login" };
+    }
+
+    try {
+      const profile = JSON.parse(session);
+      
+      // Cross-verify that the role in localStorage matches the cookie token
+      if (profile?.role !== cookieValue) {
+        return { authenticated: false, redirectTo: "/login" };
+      }
+
+      return { authenticated: true };
+    } catch {
+      return { authenticated: false, redirectTo: "/login" };
+    }
   },
 
   onError: async (error) => {

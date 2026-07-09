@@ -8,27 +8,21 @@ type ActiveView = "marketing" | "booking-chat" | "reception-desk" | "doctor-sche
 
 export function useAuthGuard() {
   const [view, setView] = useState<ActiveView>("marketing");
-  
-  // Directly retrieve the auth state object from Refine
   const { data: authStatus, isPending: authChecking } = useIsAuthenticated();
   const router = useRouter();
   const searchParams = useSearchParams();
   const pathname = usePathname();
 
-  // 1. Sync physical URL routes AND query parameters cleanly to state
   useEffect(() => {
     if (pathname === "/doctor") {
       setView("doctor-schedule");
       return;
     }
-    
-    // 🌟 ADDED: Handle the physical receptionist route path matching explicitly
     if (pathname === "/receptionist") {
       setView("reception-desk");
       return;
     }
 
-    // Fallback support for dashboard SPA parameters
     const requestedView = searchParams.get("view") as ActiveView | null;
     if (requestedView && ["marketing", "booking-chat", "reception-desk", "doctor-schedule"].includes(requestedView)) {
       setView(requestedView);
@@ -37,18 +31,18 @@ export function useAuthGuard() {
     }
   }, [searchParams, pathname]);
 
-  // 2. Clear Active Interceptor Gate
+  // 2. Absolute Interceptor Gate Guard
   useEffect(() => {
-    // 🌟 IMPORTANT: Absolutely stop evaluation if Refine is actively calculating auth status.
-    // This stops unauthenticated flashes from triggering an accidental ejection bounce.
     if (authChecking) return; 
 
     const isProtected = view === "reception-desk" || view === "doctor-schedule";
     
+    // If the view state demands protection but framework token has expired or is cleared:
     if (isProtected && !authStatus?.authenticated) {
-      router.push("/login");
+      // Direct assignment bypasses router caches immediately
+      window.location.replace("/login");
     }
-  }, [view, authStatus, authChecking, router]);
+  }, [view, authStatus, authChecking]);
 
   return {
     view,
