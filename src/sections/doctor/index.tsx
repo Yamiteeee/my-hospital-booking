@@ -32,7 +32,6 @@ interface TimeGridRowProps {
   appointment: any;
   isPastOffWorkLimit: boolean;
   toggleBreak: (hour: string) => void;
-  // 🎯 Use the exact same type signature from your custom hook
   handleStatusUpdate: (id: string, status: BookingRecord["status"]) => void;
 }
 
@@ -44,7 +43,6 @@ function TimeGridRow({
   toggleBreak,
   handleStatusUpdate
 }: TimeGridRowProps) {
-  // Local state tracks if this specific row has been read/hovered
   const [hasBeenHovered, setHasBeenHovered] = useState(false);
 
   const isBreak = (currentDoctor?.breaks as string[])?.includes(hour) ?? false;
@@ -55,7 +53,6 @@ function TimeGridRow({
   const inConsultation = currentStatus === "present";
   const isFinished = currentStatus === "completed";
 
-  // Only show the red dot if it's a new booking AND the doctor hasn't hovered over it yet
   const showRedDot = isJustBooked && !hasBeenHovered;
 
   return (
@@ -127,8 +124,6 @@ function TimeGridRow({
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="text-xs font-bold tracking-tight flex items-center gap-2">
                     {appointment.patient_name}
-                    
-                    {/* 🔴 CONTROLLED PULSING NOTIFICATION DOT */}
                     {showRedDot && (
                       <span className="relative flex h-2 w-2 shrink-0">
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
@@ -156,14 +151,11 @@ function TimeGridRow({
             </div>
 
             <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
-          <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
-            {isJustBooked && (
-              <div className="text-[10px] font-semibold text-slate-400 flex items-center gap-1 px-2.5 py-1 bg-slate-100 border border-slate-200 rounded-md shadow-none select-none">
-                {/* ⏳ Animation removed here: */}
-                <Hourglass className="h-3 w-3 text-slate-400" /> Awaiting Reception Check-in
-              </div>
-            )}
-          </div>
+              {isJustBooked && (
+                <div className="text-[10px] font-semibold text-slate-400 flex items-center gap-1 px-2.5 py-1 bg-slate-100 border border-slate-200 rounded-md shadow-none select-none">
+                  <Hourglass className="h-3 w-3 text-slate-400" /> Awaiting Reception Check-in
+                </div>
+              )}
 
               {isWaiting && (
                 <Button
@@ -210,6 +202,98 @@ function TimeGridRow({
         )}
       </div>
     </div>
+  );
+}
+
+/* ==========================================================================
+   SUB-COMPONENT: DYNAMIC OFF-WORK MANAGEMENT MODULE CARD
+   ========================================================================== */
+interface DynamicOffWorkModuleProps {
+  currentDoctor: any;
+  selectedDate: string;
+  setOffWorkHour: (hour: string | null) => Promise<void>;
+}
+
+function DynamicOffWorkModule({ currentDoctor, selectedDate, setOffWorkHour }: DynamicOffWorkModuleProps) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [tempHour, setTempHour] = useState(currentDoctor?.off_work_hour || "");
+
+  // Sync local state if the doctor switches dates on the calendar
+  React.useEffect(() => {
+    setTempHour(currentDoctor?.off_work_hour || "");
+    setIsEditing(false);
+  }, [selectedDate, currentDoctor?.off_work_hour]);
+
+  return (
+    <Card className="border-slate-200/80 shadow-sm rounded-xl bg-white">
+      <CardContent className="p-5 space-y-3">
+        <div className="space-y-1">
+          <h4 className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+            <Clock className="h-3.5 w-3.5 text-slate-400" /> Dynamic Off-Work Cutoff
+          </h4>
+          <p className="text-[11px] text-slate-500 leading-normal">
+            Leaving early or doing a partial shift? Select your target cutoff time to close off all subsequent booking slots.
+          </p>
+        </div>
+
+        <div className="space-y-2">
+          <select
+            value={tempHour}
+            disabled={!isEditing}
+            onChange={(e) => setTempHour(e.target.value)}
+            className={`w-full text-xs h-8 px-2.5 rounded-md border font-medium transition-all ${
+              isEditing 
+                ? "bg-white border-slate-300 text-slate-900 cursor-pointer" 
+                : "bg-slate-50 border-slate-200 text-slate-500 cursor-not-allowed"
+            }`}
+          >
+            <option value="">Full Shift (Available All Day)</option>
+            {OPERATIONAL_HOURS.map((hr) => (
+              <option key={hr} value={hr}>
+                {hr} (Off duty here & after)
+              </option>
+            ))}
+          </select>
+
+          <div className="flex gap-2 justify-end pt-1">
+            {!isEditing ? (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setIsEditing(true)}
+                className="h-7 text-[11px] font-bold px-3 border-slate-200"
+              >
+                Edit Cutoff
+              </Button>
+            ) : (
+              <>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    setTempHour(currentDoctor?.off_work_hour || "");
+                    setIsEditing(false);
+                  }}
+                  className="h-7 text-[11px] font-medium text-slate-500 hover:bg-slate-100"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={async () => {
+                    await setOffWorkHour(tempHour || null);
+                    setIsEditing(false);
+                  }}
+                  className="h-7 text-[11px] font-bold bg-emerald-600 hover:bg-emerald-700 text-white"
+                >
+                  Save Shift
+                </Button>
+              </>
+            )}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -305,31 +389,11 @@ export default function DoctorDashboard() {
           <h3 className="text-xs font-bold uppercase text-slate-400 tracking-wider">Day at a Glance</h3>
 
           {/* DYNAMIC OFF-WORK MANAGEMENT MODULE CARD */}
-          <Card className="border-slate-200/80 shadow-sm rounded-xl bg-white">
-            <CardContent className="p-5 space-y-3">
-              <div className="space-y-1">
-                <h4 className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                  <Clock className="h-3.5 w-3.5 text-slate-400" /> Dynamic Off-Work Cutoff
-                </h4>
-                <p className="text-[11px] text-slate-500 leading-normal">
-                  Leaving early or doing a partial shift? Select your target cutoff time to close off all subsequent booking slots.
-                </p>
-              </div>
-
-              <select
-                value={currentDoctor?.off_work_hour || ""}
-                onChange={(e) => setOffWorkHour(e.target.value || null)}
-                className="w-full text-xs h-8 px-2.5 rounded-md border border-slate-200 bg-slate-50 font-medium text-slate-700 focus:outline-none focus:ring-1 focus:ring-slate-300 transition-all cursor-pointer"
-              >
-                <option value="">Full Shift (Available All Day)</option>
-                {OPERATIONAL_HOURS.map((hr) => (
-                  <option key={hr} value={hr}>
-                    {hr} (Off duty here & after)
-                  </option>
-                ))}
-              </select>
-            </CardContent>
-          </Card>
+          <DynamicOffWorkModule 
+            currentDoctor={currentDoctor} 
+            selectedDate={selectedDate} 
+            setOffWorkHour={setOffWorkHour} 
+          />
 
           {/* SCHEDULE TIME OFF MANAGEMENT MODULE */}
           <Card className="border-slate-200/80 shadow-sm rounded-xl bg-white">

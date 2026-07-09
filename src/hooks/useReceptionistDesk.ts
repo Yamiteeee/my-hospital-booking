@@ -5,6 +5,7 @@ import { useTable, useList, useUpdate } from "@refinedev/core";
 import { useBookingOperations } from "@/hooks/useBookingOperations";
 import { SPECIALTY_ROUTING_MAP } from "@/utils/normalization";
 import { BookingRecord, Doctor } from "@/types";
+import { supabaseClient } from "@/providers/Supabase/Client";
 
 export const OPERATIONAL_HOURS = [
   "08:00", "08:30", "09:00", "09:30", "10:00", "10:30", "11:00", "11:30",
@@ -13,17 +14,40 @@ export const OPERATIONAL_HOURS = [
 ];
 
 export function useReceptionistDesk() {
-  // 🔄 Destructured rollbackBookingToQueue here
   const { updateBookingStatus, dispatchToDoctorSlot, rollbackBookingToQueue } = useBookingOperations();
   const { mutate: updateDoctorMutation } = useUpdate();
 
   const [selectedDate, setSelectedDate] = useState<string>(() => {
-  const today = new Date();
-  const year = today.getFullYear();
-  const month = String(today.getMonth() + 1).padStart(2, '0');
-  const day = String(today.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`; // Always returns the user's local date
-});
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  });
+
+
+  useEffect(() => {
+  const channel = supabaseClient
+    .channel("receptionist-daily-schedules-sync")
+    .on(
+      "postgres_changes",
+      {
+        event: "*", // Catches INSERT, UPDATE, and DELETE
+        schema: "public",
+        table: "daily_schedules",
+      },
+      () => {
+        // Tells Refine's react-query cache to silently pull down the fresh rows
+        dailySchedulesQuery.refetch();
+      }
+    )
+    .subscribe();
+
+  return () => {
+    supabaseClient.removeChannel(channel);
+  };
+}, [selectedDate]); // re-binds cleanly if they switch days
+  
   const [selectedPatient, setSelectedPatient] = useState<BookingRecord | null>(null);
   const [activeDoctorTab, setActiveDoctorTab] = useState<string>(""); 
 
@@ -31,30 +55,36 @@ export function useReceptionistDesk() {
   const { tableQuery } = useTable<BookingRecord>({
     resource: "bookings",
     sorters: { initial: [{ field: "created_at", order: "desc" }] },
-    liveMode: "auto", // 🌟 Synchronizes the central patient pipeline
+    liveMode: "auto",
   });
 
-  // 🚀 REAL-TIME: Stream status changes, breaks, and off-work caps for medical staff
+  // 🚀 REAL-TIME: Stream baseline profile details, breaks, etc.
   const { result: doctorsResult, query: doctorsQuery } = useList<Doctor>({
     resource: "doctors",
     pagination: { mode: "off" },
-    liveMode: "auto", // 🌟 Synchronizes dynamic availability and roster profiles
+    liveMode: "auto",
   });
 
-  // 🚀 TRUE REAL-TIME FIXED: 
-  // Explicitly binding selectedDate into queryOptions dependencies array forces Refine 
-  // to instantly hot-reload WebSocket rooms when the calendar view pivots.
-const { result: leavesResult } = useList({
+  // 🚀 REAL-TIME: Fetch and stream the active overrides from the new single-day table
+  const { result: dailySchedulesResult, query: dailySchedulesQuery } = useList({
+    resource: "daily_schedules",
+    filters: [{ field: "schedule_date", operator: "eq", value: selectedDate }],
+    pagination: { mode: "off" },
+    liveMode: "auto",
+  });
+
+  // 🚀 REAL-TIME: Fetch leaves for the targeted calendar date context
+  const { result: leavesResult, query: leavesQuery } = useList({
     resource: "leaves",
     filters: [{ field: "leave_date", operator: "eq", value: selectedDate }],
     pagination: { mode: "off" },
-    liveMode: "auto", 
-    // 🌟 Cleaned up: Refine tracks 'selectedDate' automatically via the filters array above!
+    liveMode: "auto",
   });
 
   const bookings = tableQuery?.data?.data ?? [];
   const doctors = doctorsResult?.data ?? [];
   const activeLeaves = leavesResult?.data ?? [];
+  const dailySchedules = dailySchedulesResult?.data ?? [];
 
   useEffect(() => {
     if (!activeDoctorTab && doctors.length > 0) {
@@ -63,7 +93,20 @@ const { result: leavesResult } = useList({
     }
   }, [doctors, activeDoctorTab]);
 
-  const currentDoctor = doctors.find((d) => d.id === activeDoctorTab || d.badge_id === activeDoctorTab) || doctors[0];
+  // Find base doctor profile matching active tab row
+  const rawDoctor = doctors.find((d) => d.id === activeDoctorTab || d.badge_id === activeDoctorTab) || doctors[0];
+  
+  // ⚡ COMPOSITION LAYER: Inject the day-specific off_work_hour tracking row if it exists
+  const currentDoctor = (() => {
+    if (!rawDoctor) return null;
+    const targetBadgeId = rawDoctor.badge_id || rawDoctor.id;
+    const matchedSchedule = dailySchedules.find((s: any) => s.badge_id === targetBadgeId);
+    return {
+      ...rawDoctor,
+      off_work_hour: matchedSchedule ? matchedSchedule.off_work_hour : null
+    };
+  })();
+
   const pendingQueue = bookings.filter((b) => (b.status === "pending" || !b.status) && !b.doctorId && !b.timeSlot);
 
   const getDepartmentMismatchForBooking = (booking: BookingRecord | null) => {
@@ -77,7 +120,6 @@ const { result: leavesResult } = useList({
     const targetDocId = currentDoctor.badge_id || currentDoctor.id;
     if (getDepartmentMismatchForBooking(selectedPatient)) return;
 
-    // Guard checking if doctor is on leave right before dispatch execution
     const isDoctorOnLeave = activeLeaves.some(
       (leave: any) => leave.badge_id === targetDocId && leave.leave_date === selectedDate
     );
@@ -97,20 +139,28 @@ const { result: leavesResult } = useList({
     });
   };
 
-  // 🔄 UI Event Handler exposed directly to your dashboard component
   const handleCancelAndResetBooking = (bookingId: string) => {
     rollbackBookingToQueue(bookingId);
   };
 
   return {
-    bookings, doctors, pendingQueue, activeLeaves, 
-    isLoading: tableQuery?.isLoading || doctorsQuery?.isLoading,
-    selectedPatient, setSelectedPatient, activeDoctorTab, setActiveDoctorTab,
-    currentDoctor, isDepartmentMismatch: getDepartmentMismatchForBooking(selectedPatient),
-    getDepartmentMismatchForBooking, handleStatusUpdate: updateBookingStatus,
-    handleDoctorAvailabilityUpdate, dispatchToSlot, selectedDate, setSelectedDate,
-    
-    // 🔄 Exposed method for the UI's "Undo/Cancel" buttons
+    bookings, 
+    doctors, 
+    pendingQueue, 
+    activeLeaves, 
+    isLoading: tableQuery?.isLoading || doctorsQuery?.isLoading || dailySchedulesQuery?.isLoading || leavesQuery?.isLoading,
+    selectedPatient, 
+    setSelectedPatient, 
+    activeDoctorTab, 
+    setActiveDoctorTab,
+    currentDoctor, 
+    isDepartmentMismatch: getDepartmentMismatchForBooking(selectedPatient),
+    getDepartmentMismatchForBooking, 
+    handleStatusUpdate: updateBookingStatus,
+    handleDoctorAvailabilityUpdate, 
+    dispatchToSlot, 
+    selectedDate, 
+    setSelectedDate,
     handleCancelAndResetBooking
   };
 }

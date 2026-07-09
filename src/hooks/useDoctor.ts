@@ -21,14 +21,13 @@ export function useDoctor() {
   const { mutate: createLeave } = useCreate(); 
   const { mutate: deleteLeave } = useDelete(); 
 
-  
-const [selectedDate, setSelectedDate] = useState<string>(() => {
-  const today = new Date();
-  const year = today.getFullYear();
-  const month = String(today.getMonth() + 1).padStart(2, '0');
-  const day = String(today.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-});
+  const [selectedDate, setSelectedDate] = useState<string>(() => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  });
   
   // 🎯 SOURCE OF TRUTH STATE: Safe from React Query's internal auto-refetch cache loops
   const [dailyAppointments, setDailyAppointments] = useState<BookingRecord[]>([]);
@@ -50,6 +49,19 @@ const [selectedDate, setSelectedDate] = useState<string>(() => {
       enabled: !!activeDoctorId,
     }
   });
+
+  // 🚀 REAL-TIME: Fetch the day's specific schedule overrides (off-work cutoff strings)
+  const { result: dailyScheduleResult, query: dailyScheduleQuery } = useList({
+    resource: "daily_schedules",
+    filters: [
+      { field: "badge_id", operator: "eq", value: activeDoctorId },
+      { field: "schedule_date", operator: "eq", value: selectedDate }
+    ],
+    queryOptions: { enabled: !!activeDoctorId },
+    liveMode: "auto"
+  });
+
+  const todayScheduleRow = dailyScheduleResult?.data?.[0] as any;
 
   // Track calendar date changes and sync initial data payload exactly once per date switch
   const cacheKey = `${activeDoctorId}-${selectedDate}`;
@@ -158,20 +170,29 @@ const [selectedDate, setSelectedDate] = useState<string>(() => {
     });
   };
 
+  // ⚡ UPDATED: Cleaned up to explicitly return the promise execution layer for button handlers
   const setOffWorkHour = async (hour: string | null) => {
-    const doctorIdentifier = currentDoctor?.id || currentDoctor?.badge_id || activeDoctorId;
-    if (!doctorIdentifier) return;
+    if (!activeDoctorId) return;
 
-    updateDoctor({
-      resource: "doctors",
-      id: doctorIdentifier,
-      values: { off_work_hour: hour },
-      mutationMode: "optimistic",
-      successNotification: () => ({
-        message: hour ? `Off-work cutoff time configured for ${hour}` : "Off-work configuration cleared",
-        type: "success"
-      })
-    });
+    if (!hour) {
+      if (todayScheduleRow?.id) {
+        await supabaseClient
+          .from("daily_schedules")
+          .delete()
+          .eq("id", todayScheduleRow.id);
+      }
+    } else {
+      await supabaseClient.from("daily_schedules").upsert(
+        {
+          badge_id: activeDoctorId,
+          schedule_date: selectedDate,
+          off_work_hour: hour
+        },
+        { onConflict: "badge_id,schedule_date" }
+      );
+    }
+    
+    await dailyScheduleQuery.refetch();
   };
 
   const requestLeave = (dateString: string, reason: string = "Personal Leave") => {
@@ -192,7 +213,6 @@ const [selectedDate, setSelectedDate] = useState<string>(() => {
   };
 
   const cancelLeave = (leaveId: string | number) => {
-
     if (!leaveId || leaveId === "undefined") {
       console.error("❌ Aborted! Missing leave selection target.");
       return;
@@ -226,11 +246,14 @@ const [selectedDate, setSelectedDate] = useState<string>(() => {
 
   return {
     identity,
-    identityLoading: identityLoading || bookingsQuery.isLoading || doctorQuery.isLoading || leavesQuery.isLoading,
+    identityLoading: identityLoading || bookingsQuery.isLoading || doctorQuery.isLoading || leavesQuery.isLoading || dailyScheduleQuery.isLoading,
     selectedDate,
     setSelectedDate,
-    currentDoctor: currentDoctor || { badge_id: activeDoctorId, name: identity?.name || "Physician Staff", specialty: "General Clinic", breaks: [], off_work_hour: null },
-    dailyAppointments, // ⚡ Fed by state array tracking manual removals directly
+    currentDoctor: {
+      ...(currentDoctor || { badge_id: activeDoctorId, name: identity?.name || "Physician Staff", specialty: "General Clinic", breaks: [] }),
+      off_work_hour: todayScheduleRow ? todayScheduleRow.off_work_hour : null
+    },
+    dailyAppointments, 
     doctorLeaves: leavesResult?.data || [], 
     handleEndShift,
     handleStatusUpdate: updateBookingStatus,
