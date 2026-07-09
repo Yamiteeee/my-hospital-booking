@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { Suspense } from "react";
 import { useLogout } from "@refinedev/core";
 import LandingSection from "@/sections/landing";
 import ChatbotSection from "@/sections/chatbot";
@@ -10,7 +10,7 @@ import { RefineGlobalProvider } from "@/providers/RefineGlobalProvider";
 import { LogOut, ShieldCheck } from "lucide-react";
 
 function MainDashboardLayout() {
-  // Extract all abstracted logic from our decoupled hook machine
+  // Extract all abstracted logic from our decoupled hook machine (uses useSearchParams under the hood)
   const { view, setView, isAuthenticated, authChecking } = useAuthGuard();
   const { mutate: logOut } = useLogout();
 
@@ -72,7 +72,18 @@ function MainDashboardLayout() {
 export default function Home() {
   return (
     <RefineGlobalProvider>
-      <MainDashboardLayout />
+      {/* ⚡ THE FIXED WRAPPER: Isolates runtime search parameters into a safe client boundary */}
+      <Suspense
+        fallback={
+          <div className="min-h-screen flex items-center justify-center bg-slate-50">
+            <div className="text-xs font-bold text-slate-400 uppercase tracking-widest animate-pulse">
+              Loading Portal Resources...
+            </div>
+          </div>
+        }
+      >
+        <MainDashboardLayout />
+      </Suspense>
     </RefineGlobalProvider>
   );
 }
