@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { OPERATIONAL_HOURS } from "@/hooks/useReceptionistDesk";
 import { useDoctor } from "@/hooks/useDoctor"; 
 import { useHospitalLogout } from "@/hooks/useHospitalLogout";
-import {  
+import {   
   Clock,  
   Calendar as CalendarIcon,  
   Coffee,  
@@ -17,7 +17,8 @@ import {
   FileText,
   CheckCircle,
   PlusCircle,
-  XCircle
+  XCircle,
+  AlertOctagon
 } from "lucide-react";
 
 export default function DoctorDashboard() {
@@ -30,9 +31,10 @@ export default function DoctorDashboard() {
     currentDoctor,
     dailyAppointments = [], 
     handleStatusUpdate,
-    toggleBreak, //  UI hook binding
-    doctorLeaves = [], //  ADDED HERE
+    toggleBreak, 
+    doctorLeaves = [], 
     requestLeave,
+    setOffWorkHour // 🌟 Integrated handler from modified hook
   } = useDoctor();
 
   if (identityLoading || !currentDoctor) {
@@ -98,36 +100,63 @@ export default function DoctorDashboard() {
         <div className="space-y-4 lg:col-span-1">
           <h3 className="text-xs font-bold uppercase text-slate-400 tracking-wider">Day at a Glance</h3>
 
+          {/* 🌟 NEW: DYNAMIC OFF-WORK MANAGEMENT MODULE CARD */}
+          <Card className="border-slate-200/80 shadow-sm rounded-xl bg-white">
+            <CardContent className="p-5 space-y-3">
+              <div className="space-y-1">
+                <h4 className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                  <Clock className="h-3.5 w-3.5 text-slate-400" /> Dynamic Off-Work Cutoff
+                </h4>
+                <p className="text-[11px] text-slate-500 leading-normal">
+                  Leaving early or doing a partial shift? Select your target cutoff time to close off all subsequent booking slots.
+                </p>
+              </div>
 
-          <Card className="border-slate-200/80 shadow-sm rounded-xl bg-white mt-4">
-      <CardContent className="p-5 space-y-3">
-        <div className="space-y-1">
-          <h4 className="text-xs font-bold text-slate-700">Schedule Time Off</h4>
-          <p className="text-[11px] text-slate-500 leading-normal">
-            Mark <span className="font-semibold text-slate-700">{selectedDate}</span> as an official leave day. This will lock appointment intakes.
-          </p>
-        </div>
-              
-          {/* Check if the doctor is currently on leave for the active date filter view */}
-          {doctorLeaves.some((leave: any) => leave.leave_date === selectedDate) ? (
-            <div className="text-[11px] font-bold text-rose-700 bg-rose-50 border border-rose-100 p-2.5 rounded-lg text-center">
-              ✈️ Scheduled Off-Duty on this Date
-            </div>
-          ) : (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => {
-                const confirmation = window.confirm(`Are you sure you want to mark ${selectedDate} as an Off-Duty Leave day?`);
-                if (confirmation) requestLeave(selectedDate, "Physician Request Leave");
-              }}
-              className="w-full h-8 text-[11px] font-semibold text-slate-600 hover:text-rose-600 hover:bg-rose-50/50 border border-slate-200 shadow-none rounded-md transition-all"
-            >
-              Block Day / Set Leave
-            </Button>
-          )}
-        </CardContent>
-      </Card>
+              <select
+                value={currentDoctor?.off_work_hour || ""}
+                onChange={(e) => setOffWorkHour(e.target.value || null)}
+                className="w-full text-xs h-8 px-2.5 rounded-md border border-slate-200 bg-slate-50 font-medium text-slate-700 focus:outline-none focus:ring-1 focus:ring-slate-300"
+              >
+                <option value="">Full Shift (Available All Day)</option>
+                {OPERATIONAL_HOURS.map((hr) => (
+                  <option key={hr} value={hr}>
+                    {hr} (Off duty here & after)
+                  </option>
+                ))}
+              </select>
+            </CardContent>
+          </Card>
+
+          <Card className="border-slate-200/80 shadow-sm rounded-xl bg-white">
+            <CardContent className="p-5 space-y-3">
+              <div className="space-y-1">
+                <h4 className="text-xs font-bold text-slate-700">Schedule Time Off</h4>
+                <p className="text-[11px] text-slate-500 leading-normal">
+                  Mark <span className="font-semibold text-slate-700">{selectedDate}</span> as an official leave day. This will lock appointment intakes.
+                </p>
+              </div>
+                  
+              {/* Check if the doctor is currently on leave for the active date filter view */}
+              {doctorLeaves.some((leave: any) => leave.leave_date === selectedDate) ? (
+                <div className="text-[11px] font-bold text-rose-700 bg-rose-50 border border-rose-100 p-2.5 rounded-lg text-center">
+                  ✈️ Scheduled Off-Duty on this Date
+                </div>
+              ) : (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    const confirmation = window.confirm(`Are you sure you want to mark ${selectedDate} as an Off-Duty Leave day?`);
+                    if (confirmation) requestLeave(selectedDate, "Physician Request Leave");
+                  }}
+                  className="w-full h-8 text-[11px] font-semibold text-slate-600 hover:text-rose-600 hover:bg-rose-50/50 border border-slate-200 shadow-none rounded-md transition-all"
+                >
+                  Block Day / Set Leave
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+
           <Card className="border-slate-200/80 shadow-sm rounded-xl bg-white">
             <CardContent className="p-5 space-y-4">
               <div className="flex justify-between items-center border-b border-slate-50 pb-3">
@@ -164,19 +193,39 @@ export default function DoctorDashboard() {
                 const isBreak = (currentDoctor?.breaks as string[])?.includes(hour) ?? false;
                 const appointment = dailyAppointments.find(b => b.timeSlot === hour);
                 
+                // 🌟 VET CUTOFF CONDITIONS: Evaluate if slot matches or follows off work limit
+                const isPastOffWorkLimit = currentDoctor?.off_work_hour
+                  ? hour >= currentDoctor.off_work_hour
+                  : false;
+
                 const isWaiting = appointment?.status === "checked_in";
                 const inConsultation = appointment?.status === "present";
                 const isFinished = appointment?.status === "completed";
 
                 return (
-                  <div key={hour} className="flex min-h-[76px] transition-all hover:bg-slate-50/30 group">
+                  <div key={hour} className={`flex min-h-[76px] transition-all ${isPastOffWorkLimit ? "bg-slate-50/40 select-none" : "hover:bg-slate-50/30 group"}`}>
                     <div className="w-[85px] sm:w-[100px] border-r border-slate-100 p-4 shrink-0 flex items-start gap-1.5 justify-end text-slate-400 font-semibold text-xs tracking-tight bg-slate-50/40 select-none">
                       <Clock className="h-3.5 w-3.5 mt-0.5 opacity-60" />
                       {hour}
                     </div>
 
                     <div className="flex-1 p-3 flex flex-col justify-center">
-                      {isBreak ? (
+                      {/* 🌟 BLOCK PATTERN 1: CHECK FOR OFF-WORK LIMIT OVERRIDE FIRST */}
+                      {isPastOffWorkLimit ? (
+                        <div className="border border-slate-200/60 bg-slate-100/40 text-slate-400 rounded-xl px-4 py-2.5 flex items-center justify-between animate-in fade-in duration-700">
+                          <div className="flex items-center gap-2.5">
+                            <div className="h-7 w-7 rounded-lg bg-slate-200/60 flex items-center justify-center text-slate-500 shrink-0">
+                              <AlertOctagon className="h-4 w-4" />
+                            </div>
+                            <div>
+                              <p className="text-xs font-bold text-slate-500">Off Duty Block / Shift Concluded</p>
+                              <p className="text-[10px] text-slate-400 font-medium">Locked out according to your set custom working hours limit.</p>
+                            </div>
+                          </div>
+                          <Badge className="bg-slate-200 text-slate-500 text-[9px] font-bold border-transparent shadow-none uppercase">Closed</Badge>
+                        </div>
+                      ) : isBreak ? (
+                        /* BLOCK PATTERN 2: BREAK RENDER */
                         <div className="bg-amber-50/40 border border-amber-100/70 text-amber-800 rounded-xl px-4 py-2.5 flex items-center justify-between animate-in fade-in duration-100">
                           <div className="flex items-center gap-2.5">
                             <div className="h-7 w-7 rounded-lg bg-amber-100 flex items-center justify-center text-amber-600 shadow-none shrink-0">
@@ -189,7 +238,6 @@ export default function DoctorDashboard() {
                           </div>
                           <div className="flex items-center gap-2">
                             <Badge className="bg-amber-100/80 hover:bg-amber-100/80 text-amber-900 text-[10px] font-bold border-transparent shadow-none group-hover:hidden">Unavailable</Badge>
-                            {/* 🌟 Dynamic break cancel button hidden till block row is hovered */}
                             <Button 
                               size="sm" 
                               variant="ghost" 
@@ -201,6 +249,7 @@ export default function DoctorDashboard() {
                           </div>
                         </div>
                       ) : appointment ? (
+                        /* BLOCK PATTERN 3: ACTIVE APPOINTMENTS */
                         <div className={`border rounded-xl px-4 py-3 flex flex-col sm:flex-row gap-3 sm:items-center justify-between shadow-sm transition-all ${
                           inConsultation 
                             ? "bg-amber-50/40 border-amber-200 text-amber-950 shadow-inner" 
@@ -263,7 +312,7 @@ export default function DoctorDashboard() {
                           </div>
                         </div>
                       ) : (
-                        /* 🌟 Unscheduled open slot element now triggers dynamic assignment */
+                        /* BLOCK PATTERN 4: UNSCHEDULED OPEN SLOT ELEMENT */
                         <div className="flex items-center justify-between pl-2">
                           <div className="text-[11px] text-slate-400 font-normal italic group-hover:text-slate-500 transition-colors flex items-center gap-1">
                             No active appointments assigned to this time frame.

@@ -288,22 +288,31 @@ export default function ReceptionistSection() {
                 </div>
               ) : (
                 <>
-                  {/* Mobile View */}
+                 {/* Mobile View */}
                   <div className="block sm:hidden divide-y divide-slate-100">
                     {OPERATIONAL_HOURS.map((hour: string) => {
                       const isBreak = currentDoctor?.breaks?.includes(hour) ?? false;
+                      
+                      // 🌟 Check if this hour is past the doctor's early off-work cutoff limit
+                      const isPastOffWorkLimit = currentDoctor?.off_work_hour 
+                        ? hour >= currentDoctor.off_work_hour 
+                        : false;
+
                       const filledBooking = bookings.find(b => (b.badge_id || b.doctorId) === currentDoctor?.badge_id && b.timeSlot === hour && b.preferredDate === selectedDate && b.status !== "cancelled");
 
                       return (
-                        <div key={hour} className={`p-4 space-y-2 ${isBreak ? "bg-amber-50/20" : filledBooking ? "bg-slate-50/20" : ""}`}>
+                        <div key={hour} className={`p-4 space-y-2 ${isBreak || isPastOffWorkLimit ? "bg-slate-50/50 opacity-60" : filledBooking ? "bg-slate-50/20" : ""}`}>
                           <div className="flex justify-between items-center">
                             <span className="font-bold text-xs text-slate-700 flex items-center gap-1.5"><Clock className="h-3.5 w-3.5 text-slate-400" /> {hour}</span>
-                            {isBreak && <Badge className="bg-amber-100 border-amber-200 hover:bg-amber-100 text-amber-800 text-[9px] font-medium">Break</Badge>}
-                            {filledBooking && getPatientLifecycleBadge(filledBooking.status)}
+                            {isPastOffWorkLimit && <Badge className="bg-slate-100 border-slate-200 text-slate-400 text-[9px] shadow-none">🛑 Off Work</Badge>}
+                            {isBreak && !isPastOffWorkLimit && <Badge className="bg-amber-100 border-amber-200 hover:bg-amber-100 text-amber-800 text-[9px] font-medium">Break</Badge>}
+                            {filledBooking && !isPastOffWorkLimit && getPatientLifecycleBadge(filledBooking.status)}
                           </div>
                           
                           <div className="text-xs">
-                            {filledBooking ? (
+                            {isPastOffWorkLimit ? (
+                              <span className="text-slate-400 italic">Doctor has clocked out for the day</span>
+                            ) : filledBooking ? (
                               <div className="space-y-1">
                                 <p className="font-semibold text-slate-900">{filledBooking.patient_name}</p>
                                 
@@ -326,7 +335,7 @@ export default function ReceptionistSection() {
                             ) : null}
                           </div>
 
-                          {selectedPatient && !isBreak && !filledBooking && (
+                          {selectedPatient && !isBreak && !filledBooking && !isPastOffWorkLimit && (
                             <Button
                               size="sm"
                               disabled={!!isDepartmentMismatch}
@@ -353,16 +362,26 @@ export default function ReceptionistSection() {
                     <TableBody>
                       {OPERATIONAL_HOURS.map((hour: string) => {
                         const isBreak = currentDoctor?.breaks?.includes(hour) ?? false;
+                        
+                        // 🌟 Check if this hour is past the doctor's early off-work cutoff limit
+                        const isPastOffWorkLimit = currentDoctor?.off_work_hour 
+                          ? hour >= currentDoctor.off_work_hour 
+                          : false;
+
                         const filledBooking = bookings.find(b => (b.badge_id || b.doctorId) === currentDoctor?.badge_id && b.timeSlot === hour && b.preferredDate === selectedDate && b.status !== "cancelled");
 
                         return (
-                          <TableRow key={hour} className={`border-b border-slate-100/80 ${isBreak ? "bg-amber-50/10" : filledBooking ? "bg-slate-50/20" : "hover:bg-slate-50/10"}`}>
+                          <TableRow key={hour} className={`border-b border-slate-100/80 ${isBreak || isPastOffWorkLimit ? "bg-slate-50/50 opacity-60" : filledBooking ? "bg-slate-50/20" : "hover:bg-slate-50/10"}`}>
                             <TableCell className="font-semibold text-xs text-slate-700 py-3.5 pl-6">
                               <span className="flex items-center gap-1.5"><Clock className="h-3 w-3 text-slate-400" /> {hour}</span>
                             </TableCell>
                             
                             <TableCell className="py-3.5">
-                              {isBreak ? (
+                              {isPastOffWorkLimit ? (
+                                <div className="text-[11px] font-medium text-slate-400 flex items-center gap-1.5 bg-slate-100 border border-slate-200 px-2.5 py-0.5 w-max rounded-md shadow-none">
+                                  🛑 Doctor Off Work / Shift Concluded
+                                </div>
+                              ) : isBreak ? (
                                 <div className="text-[11px] font-medium text-amber-700 flex items-center gap-1.5 bg-amber-50/50 border border-amber-100 px-2.5 py-0.5 w-max rounded-md">
                                   <AlertCircle className="h-3 w-3 text-amber-500" /> Physician Rest Period
                                 </div>
@@ -380,7 +399,9 @@ export default function ReceptionistSection() {
                             </TableCell>
 
                             <TableCell className="py-3.5 text-right pr-6">
-                              {filledBooking ? (
+                              {isPastOffWorkLimit ? (
+                                <span className="text-[11px] text-slate-300 font-medium select-none">Unavailable</span>
+                              ) : filledBooking ? (
                                 <div className="flex items-center justify-end gap-2">
                                   {getPatientLifecycleBadge(filledBooking.status)}
                                   {filledBooking.status !== "checked_in" && filledBooking.status !== "present" && filledBooking.status !== "completed" && (

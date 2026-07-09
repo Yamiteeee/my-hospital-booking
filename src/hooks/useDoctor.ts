@@ -17,7 +17,7 @@ export function useDoctor() {
   const { updateBookingStatus } = useBookingOperations();
   const { mutate: logout } = useLogout();
   const { mutate: updateDoctor } = useUpdate();
-  const { mutate: createLeave } = useCreate(); // 🌟 Hook to insert leaves
+  const { mutate: createLeave } = useCreate(); 
   
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split("T")[0]);
   const { data: identity, isLoading: identityLoading } = useGetIdentity<UseDoctorIdentity>();
@@ -41,7 +41,7 @@ export function useDoctor() {
     queryOptions: { enabled: !!activeDoctorId }
   });
 
-  // 🌟 Fetch upcoming leaves for this doctor
+  // Fetch upcoming leaves for this doctor
   const { result: leavesResult, query: leavesQuery } = useList({
     resource: "leaves",
     filters: [{ field: "badge_id", operator: "eq", value: activeDoctorId }],
@@ -51,7 +51,7 @@ export function useDoctor() {
   const currentDoctor = doctorInfo?.data?.[0];
 
   const toggleBreak = async (hour: string) => {
-    const doctorIdentifier = currentDoctor?.badge_id || activeDoctorId;
+    const doctorIdentifier = currentDoctor?.id || currentDoctor?.badge_id || activeDoctorId;
     if (!doctorIdentifier) return;
 
     const currentBreaks = (currentDoctor?.breaks as string[]) || [];
@@ -70,7 +70,24 @@ export function useDoctor() {
     });
   };
 
-  // 🌟 Dynamic Leave Request Function
+  // 🌟 Dynamic Off-Work Selection Function
+  const setOffWorkHour = async (hour: string | null) => {
+    const doctorIdentifier = currentDoctor?.id || currentDoctor?.badge_id || activeDoctorId;
+    if (!doctorIdentifier) return;
+
+    updateDoctor({
+      resource: "doctors",
+      id: doctorIdentifier,
+      values: { off_work_hour: hour }, // Stores string (e.g. "14:00") or null
+      mutationMode: "optimistic",
+      successNotification: () => ({
+        message: hour ? `Off-work cutoff time configured for ${hour}` : "Off-work configuration cleared",
+        type: "success"
+      })
+    });
+  };
+
+  // Dynamic Leave Request Function
   const requestLeave = (dateString: string, reason: string = "Personal Leave") => {
     if (!activeDoctorId) return;
     
@@ -102,12 +119,13 @@ export function useDoctor() {
     identityLoading: identityLoading || bookingsQuery.isLoading || doctorQuery.isLoading || leavesQuery.isLoading,
     selectedDate,
     setSelectedDate,
-    currentDoctor: currentDoctor || { badge_id: activeDoctorId, name: identity?.name || "Physician Staff", specialty: "General Clinic", breaks: [] },
+    currentDoctor: currentDoctor || { badge_id: activeDoctorId, name: identity?.name || "Physician Staff", specialty: "General Clinic", breaks: [], off_work_hour: null },
     dailyAppointments: bookingsResult?.data || [],
-    doctorLeaves: leavesResult?.data || [], // 🌟 Exposed leave array
+    doctorLeaves: leavesResult?.data || [], 
     handleEndShift,
     handleStatusUpdate: updateBookingStatus,
     toggleBreak,
-    requestLeave, //  Exposed function to trigger leaves
+    requestLeave, 
+    setOffWorkHour, // 🌟 Exposed the off-work configuration method
   };
 }

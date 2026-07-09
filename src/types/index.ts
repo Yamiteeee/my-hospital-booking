@@ -48,6 +48,7 @@ export interface Doctor {
   profiles?: {
     name: string;
   };
+  off_work_hour?: string | null;
 }
 
 // --- Component Prop Types ---
