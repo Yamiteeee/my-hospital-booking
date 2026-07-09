@@ -17,7 +17,7 @@ export function useHospitalLogout() {
       }
 
       const executeFinalRedirect = () => {
-        // 🌟 CRITICAL: Use native location re-routing over router.push() 
+        //  CRITICAL: Use native location re-routing over router.push() 
         // to forcefully break client-side rendering caches.
         window.location.href = "/login";
       };

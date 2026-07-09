@@ -51,21 +51,21 @@ export function useReceptionistDesk() {
   const [selectedPatient, setSelectedPatient] = useState<BookingRecord | null>(null);
   const [activeDoctorTab, setActiveDoctorTab] = useState<string>(""); 
 
-  // 🚀 REAL-TIME: Stream incoming triage records and status updates
+  //  REAL-TIME: Stream incoming triage records and status updates
   const { tableQuery } = useTable<BookingRecord>({
     resource: "bookings",
     sorters: { initial: [{ field: "created_at", order: "desc" }] },
     liveMode: "auto",
   });
 
-  // 🚀 REAL-TIME: Stream baseline profile details, breaks, etc.
+  // REAL-TIME: Stream baseline profile details, breaks, etc.
   const { result: doctorsResult, query: doctorsQuery } = useList<Doctor>({
     resource: "doctors",
     pagination: { mode: "off" },
     liveMode: "auto",
   });
 
-  // 🚀 REAL-TIME: Fetch and stream the active overrides from the new single-day table
+  // REAL-TIME: Fetch and stream the active overrides from the new single-day table
   const { result: dailySchedulesResult, query: dailySchedulesQuery } = useList({
     resource: "daily_schedules",
     filters: [{ field: "schedule_date", operator: "eq", value: selectedDate }],
@@ -73,7 +73,7 @@ export function useReceptionistDesk() {
     liveMode: "auto",
   });
 
-  // 🚀 REAL-TIME: Fetch leaves for the targeted calendar date context
+  //  REAL-TIME: Fetch leaves for the targeted calendar date context
   const { result: leavesResult, query: leavesQuery } = useList({
     resource: "leaves",
     filters: [{ field: "leave_date", operator: "eq", value: selectedDate }],
@@ -96,7 +96,7 @@ export function useReceptionistDesk() {
   // Find base doctor profile matching active tab row
   const rawDoctor = doctors.find((d) => d.id === activeDoctorTab || d.badge_id === activeDoctorTab) || doctors[0];
   
-  // ⚡ COMPOSITION LAYER: Inject the day-specific off_work_hour tracking row if it exists
+  //  COMPOSITION LAYER: Inject the day-specific off_work_hour tracking row if it exists
   const currentDoctor = (() => {
     if (!rawDoctor) return null;
     const targetBadgeId = rawDoctor.badge_id || rawDoctor.id;

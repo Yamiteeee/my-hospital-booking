@@ -408,7 +408,7 @@ export default function DoctorDashboard() {
               {activeLeaveForToday ? (
                 <div className="flex flex-col gap-2 animate-in zoom-in-95 duration-150">
                   <div className="text-[11px] font-bold text-rose-700 bg-rose-50 border border-rose-100 p-2.5 rounded-lg text-center">
-                    ✈️ Scheduled Off-Duty on this Date
+                     Scheduled Off-Duty on this Date
                   </div>
                   
                   <Button

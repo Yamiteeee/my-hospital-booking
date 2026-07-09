@@ -70,7 +70,7 @@ export function useBookingOperations() {
     });
   };
 
-  // 🔄 NEW: Clear all scheduling fields and revert patient back to triage queue
+  //  NEW: Clear all scheduling fields and revert patient back to triage queue
   const rollbackBookingToQueue = (id: string, onSuccessCallback?: () => void) => {
     updateMutation({
       resource: "bookings",

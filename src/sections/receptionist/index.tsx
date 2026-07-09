@@ -23,7 +23,7 @@ import {
   LogOut,
   Activity,
   PlaneTakeoff,
-  RotateCcw // 🔄 Added for Reset/Undo styling
+  RotateCcw //  Added for Reset/Undo styling
 } from "lucide-react";
 
 export default function ReceptionistSection() {
@@ -45,7 +45,7 @@ export default function ReceptionistSection() {
     handleStatusUpdate,
     handleDoctorAvailabilityUpdate,
     dispatchToSlot,
-    handleCancelAndResetBooking, // 🔄 Grabbed the new rollback action from the hook
+    handleCancelAndResetBooking, //  Grabbed the new rollback action from the hook
     activeLeaves = []
   } = useReceptionistDesk();
 
@@ -318,7 +318,7 @@ export default function ReceptionistSection() {
                                       <Button size="sm" variant="outline" className="text-[10px] h-6 grow" onClick={() => handleStatusUpdate(filledBooking.id, "checked_in")}>
                                         Check In Patient
                                       </Button>
-                                      {/* 🔄 Mobile Reset Action */}
+                                      {/*  Mobile Reset Action */}
                                       <Button size="sm" variant="ghost" className="h-6 text-[10px] text-slate-400 hover:text-rose-600 px-2 rounded-md" onClick={() => handleCancelAndResetBooking(filledBooking.id)} title="Return to waiting queue">
                                         <RotateCcw className="h-3 w-3" />
                                       </Button>
@@ -409,7 +409,7 @@ export default function ReceptionistSection() {
                                 <div className="flex items-center justify-end gap-2">
                                   {getPatientLifecycleBadge(filledBooking.status)}
                                   
-                                  {/* 🔄 Desktop View: If simply booked, show Check In + Revert Button */}
+                                  {/*  Desktop View: If simply booked, show Check In + Revert Button */}
                                   {filledBooking.status !== "checked_in" && filledBooking.status !== "present" && filledBooking.status !== "completed" && (
                                     <>
                                       <Button
@@ -432,7 +432,7 @@ export default function ReceptionistSection() {
                                     </>
                                   )}
 
-                                  {/* 🔄 Desktop View: If checked-in but not in room yet, still allow rollback */}
+                                  {/*  Desktop View: If checked-in but not in room yet, still allow rollback */}
                                   {filledBooking.status === "checked_in" && (
                                     <Button
                                       size="sm"

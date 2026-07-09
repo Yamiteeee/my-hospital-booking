@@ -18,8 +18,8 @@ export const SPECIALTY_ROUTING_MAP: Record<NormalizedReason, string | null> = {
   CHRONIC_MIGRAINE: "Neurology",
   SEIZURE_EVAL: "Neurology",
   CONCUSSION_FOLLOWUP: "Neurology",
-  ORTHOPEDIC_CARE: "Orthopedic",               // 🌟 Aligned exactly to Dr. Arthur
-  PEDIATRIC_CARE: "Pediatrics & Neonatal Care", // 🌟 Aligned exactly to Dr. Maya
+  ORTHOPEDIC_CARE: "Orthopedic",               //  Aligned exactly to Dr. Arthur
+  PEDIATRIC_CARE: "Pediatrics & Neonatal Care", //  Aligned exactly to Dr. Maya
   GENERAL_CONSULT: null, 
 };
 

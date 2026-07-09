@@ -13,7 +13,7 @@ export default function AuthSection() {
   const [errorMessage, setErrorMessage] = useState("");
   const router = useRouter();
   
-  // 📈 Custom portfolio metrics counter initialization
+  // Custom portfolio metrics counter initialization
   const { visitorNumber, loading: loadingCounter } = useVisitorCounter();
   const { mutateAsync: login, isPending } = useLogin();
 
@@ -120,7 +120,7 @@ export default function AuthSection() {
         </div>
       </div>
 
-      {/* 🌟 SUBTLE PORTFOLIO VISITOR COUNTER MESSAGE BOX */}
+      {/*  SUBTLE PORTFOLIO VISITOR COUNTER MESSAGE BOX */}
       <div className="text-center animate-in fade-in duration-700 delay-200">
         {!loadingCounter && visitorNumber !== null ? (
           <p className="text-[11px] font-medium text-slate-400 flex items-center justify-center gap-1.5 bg-white/60 backdrop-blur-sm border border-slate-200/60 px-4 py-1.5 rounded-full shadow-sm">

@@ -19,7 +19,7 @@ export interface Patient {
   normalized_reason?: string;
 }
 
-// 🌟 RECONCILED: Matches the Supabase status check constraints and your hook properties
+//  RECONCILED: Matches the Supabase status check constraints and your hook properties
 export interface BookingRecord {
   id: string;
   patient_name: string;
@@ -37,7 +37,7 @@ export interface BookingRecord {
 // Alias to maintain full backward compatibility with any older visual components referencing 'Booking'
 export type Booking = BookingRecord;
 
-// 🌟 RECONCILED: Includes availability status fields to fix component rendering tracks
+//  RECONCILED: Includes availability status fields to fix component rendering tracks
 export interface Doctor {
   id: string;
   badge_id: string; // Made standard for matching operations

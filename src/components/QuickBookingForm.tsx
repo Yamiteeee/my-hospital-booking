@@ -55,7 +55,7 @@ export function QuickBookingForm({
               />
             </div>
 
-            {/* 🌟 ADDED: Patient Mobile / Phone Input Field */}
+            {/*  ADDED: Patient Mobile / Phone Input Field */}
             <div className="space-y-1">
               <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Mobile Number</label>
               <input 
@@ -68,7 +68,7 @@ export function QuickBookingForm({
               />
             </div>
 
-            {/* 🌟 EXPLICIT WINGS DROPDOWN */}
+            {/*  EXPLICIT WINGS DROPDOWN */}
             <div className="space-y-1">
               <label htmlFor={selectId} className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Target Specialty Wing</label>
               <select 

@@ -6,7 +6,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "St. Mary's MedVA Portal",
   description: "Modern patient care coordination framework",
-  // ⚡ Next.js automatically links app/icon.tsx, no extra metadata entries needed here!
+  //  Next.js automatically links app/icon.tsx, no extra metadata entries needed here!
 };
 
 export default function RootLayout({

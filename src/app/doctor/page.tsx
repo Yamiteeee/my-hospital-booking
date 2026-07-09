@@ -1,7 +1,7 @@
 import DoctorSection from "@/sections/doctor";
 import { ClientAuthGate } from "@/hooks/ClientAuthGate";
 
-// 🌟 Safe server configurations
+//  Safe server configurations
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 

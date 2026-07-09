@@ -29,7 +29,7 @@ export function useDoctor() {
     return `${year}-${month}-${day}`;
   });
   
-  // 🎯 SOURCE OF TRUTH STATE: Safe from React Query's internal auto-refetch cache loops
+  //  SOURCE OF TRUTH STATE: Safe from React Query's internal auto-refetch cache loops
   const [dailyAppointments, setDailyAppointments] = useState<BookingRecord[]>([]);
   const isInitialLoad = useRef<Record<string, boolean>>({});
 
@@ -82,7 +82,7 @@ export function useDoctor() {
     }
   }, [selectedDate, activeDoctorId]);
 
-  // 🔥 EXPLICIT EVENT BROADCASTER LAYER
+  //  EXPLICIT EVENT BROADCASTER LAYER
   useEffect(() => {
     if (!activeDoctorId) return;
 
@@ -132,7 +132,7 @@ export function useDoctor() {
     };
   }, [activeDoctorId, selectedDate]);
 
-  // 🚀 REAL-TIME: Stream updates to this doctor's core profile record
+  //  REAL-TIME: Stream updates to this doctor's core profile record
   const { result: doctorInfo, query: doctorQuery } = useList<Doctor>({
     resource: "doctors",
     filters: [{ field: "badge_id", operator: "eq", value: activeDoctorId }],
@@ -140,7 +140,7 @@ export function useDoctor() {
     liveMode: "auto",
   });
 
-  // 🚀 REAL-TIME: Fetch and live-update upcoming leaves for this doctor
+  //  REAL-TIME: Fetch and live-update upcoming leaves for this doctor
   const { result: leavesResult, query: leavesQuery } = useList({
     resource: "leaves",
     filters: [{ field: "badge_id", operator: "eq", value: activeDoctorId }],

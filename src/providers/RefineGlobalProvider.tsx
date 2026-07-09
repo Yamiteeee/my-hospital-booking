@@ -49,7 +49,7 @@ const secureSupabaseAuthProvider: AuthProvider = {
 
     const session = localStorage.getItem("hospital_user_session");
     
-    // 🌟 READ THE ACTUAL LIVE COOKIE
+    //  READ THE ACTUAL LIVE COOKIE
     const cookieValue = document.cookie
       .split("; ")
       .find((row) => row.startsWith("hospital_user_session="))
@@ -102,7 +102,7 @@ const secureSupabaseAuthProvider: AuthProvider = {
   },
 };
 
-// 🛠️ CUSTOM REALTIME PATCH FOR SUPABASE MULTI-FILTER LIMITATION
+//  CUSTOM REALTIME PATCH FOR SUPABASE MULTI-FILTER LIMITATION
 const baseLiveProvider = liveProvider(supabaseClient);
 
 const safeLiveProvider: LiveProvider = {
@@ -133,7 +133,7 @@ export function RefineGlobalProvider({ children }: { children: React.ReactNode }
   return (
     <Refine
       dataProvider={dataProvider(supabaseClient)}
-      liveProvider={safeLiveProvider} // 🚀 Using patched provider to manage web sockets smoothly
+      liveProvider={safeLiveProvider} //  Using patched provider to manage web sockets smoothly
       authProvider={secureSupabaseAuthProvider}
       resources={[
         {
@@ -154,7 +154,7 @@ export function RefineGlobalProvider({ children }: { children: React.ReactNode }
       ]}
       options={{ 
         syncWithLocation: false,
-        liveMode: "auto" // 🌟 Keeps live tracking enabled automatically
+        liveMode: "auto" //  Keeps live tracking enabled automatically
       }}
     >
       {children}

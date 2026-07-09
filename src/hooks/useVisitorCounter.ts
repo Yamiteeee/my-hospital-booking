@@ -8,7 +8,7 @@ export function useVisitorCounter() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // 🛡️ BUILD PROTECTION: Prevent execution on Vercel's build servers
+    //  BUILD PROTECTION: Prevent execution on Vercel's build servers
     if (typeof window === "undefined" || !supabaseClient) {
       setLoading(false);
       return;
