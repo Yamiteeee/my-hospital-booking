@@ -55,7 +55,7 @@ export function useReceptionistDesk() {
   }, [doctors, activeDoctorTab]);
 
   const currentDoctor = doctors.find((d) => d.id === activeDoctorTab || d.badge_id === activeDoctorTab) || doctors[0];
-  const pendingQueue = bookings.filter((b) => b.status === "pending" || !b.status);
+const pendingQueue = bookings.filter((b) => (b.status === "pending" || !b.status) && !b.doctorId && !b.timeSlot);
 
   const getDepartmentMismatchForBooking = (booking: BookingRecord | null) => {
     if (!booking?.normalized_reason || !currentDoctor) return false;

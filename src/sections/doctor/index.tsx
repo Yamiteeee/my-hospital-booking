@@ -18,8 +18,7 @@ import {
   CheckCircle,
   PlusCircle,
   XCircle,
-  AlertOctagon,
-  Radio // 🌟 Imported for the Live Sockets UI indicator
+  AlertOctagon
 } from "lucide-react";
 
 export default function DoctorDashboard() {
@@ -55,7 +54,6 @@ export default function DoctorDashboard() {
       <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center border-b border-slate-100 pb-5">
         <div>
           <div className="flex items-center flex-wrap gap-2">
-            {/* 🚀 REALTIME LIVE FEED FEEDBACK BADGE */}
             <span className="inline-flex items-center gap-1.5 text-[10px] font-bold text-emerald-700 uppercase tracking-widest bg-emerald-50 border border-emerald-200/60 px-2.5 py-1 rounded-md shadow-sm">
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
@@ -144,7 +142,6 @@ export default function DoctorDashboard() {
                 </p>
               </div>
                   
-              {/* Check if the doctor is currently on leave for the active date filter view */}
               {doctorLeaves.some((leave: any) => leave.leave_date === selectedDate) ? (
                 <div className="text-[11px] font-bold text-rose-700 bg-rose-50 border border-rose-100 p-2.5 rounded-lg text-center animate-in zoom-in-95 duration-150">
                   ✈️ Scheduled Off-Duty on this Date

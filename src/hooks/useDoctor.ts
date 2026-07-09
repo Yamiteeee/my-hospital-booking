@@ -18,23 +18,30 @@ export function useDoctor() {
   const { mutate: logout } = useLogout();
   const { mutate: updateDoctor } = useUpdate();
   const { mutate: createLeave } = useCreate(); 
-  const { mutate: deleteLeave } = useDelete(); // 🌟 Added for rolling back a leave day
+  const { mutate: deleteLeave } = useDelete(); 
   
-  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split("T")[0]);
+  const [selectedDate, setSelectedDate] = useState<string>(
+    new Date().toISOString().split("T")[0]
+  );
+  
   const { data: identity, isLoading: identityLoading } = useGetIdentity<UseDoctorIdentity>();
 
+  // Get the normalized active doctor ID string
   const activeDoctorId = (identity?.badge_id || identity?.id || "").toUpperCase();
 
-  // 🚀 REAL-TIME: Load ONLY appointments dispatched directly to this doctor
+  // 🚀 TRUE REAL-TIME FIXED:
+  // We filter ONLY by this doctor's ID. When doctorId becomes null on the server,
+  // it instantly drops out of this subscription channel, forcing an immediate UI removal!
   const { result: bookingsResult, query: bookingsQuery } = useList<BookingRecord>({
     resource: "bookings",
     filters: [
       { field: "doctorId", operator: "eq", value: activeDoctorId },
-      { field: "preferredDate", operator: "eq", value: selectedDate },
-      { field: "status", operator: "ne", value: "cancelled" }
+      { field: "preferredDate", operator: "eq", value: selectedDate }
     ],
-    queryOptions: { enabled: !!activeDoctorId },
-    liveMode: "auto", // 🌟 Synchronizes with the database live stream
+    queryOptions: { 
+      enabled: !!activeDoctorId,
+    },
+    liveMode: "auto",
   });
 
   // 🚀 REAL-TIME: Stream updates to this doctor's core profile record
@@ -42,7 +49,7 @@ export function useDoctor() {
     resource: "doctors",
     filters: [{ field: "badge_id", operator: "eq", value: activeDoctorId }],
     queryOptions: { enabled: !!activeDoctorId },
-    liveMode: "auto", // 🌟 Syncs custom breaks or shift limits immediately
+    liveMode: "auto",
   });
 
   // 🚀 REAL-TIME: Fetch and live-update upcoming leaves for this doctor
@@ -50,10 +57,15 @@ export function useDoctor() {
     resource: "leaves",
     filters: [{ field: "badge_id", operator: "eq", value: activeDoctorId }],
     queryOptions: { enabled: !!activeDoctorId },
-    liveMode: "auto", // 🌟 Syncs live calendar data changes
+    liveMode: "auto",
   });
 
   const currentDoctor = doctorInfo?.data?.[0];
+
+  // ⚡ SIMPLIFIED CLEAN ARRAY RENDERING:
+  // Since the real-time server filter guarantees only this doctor's current day bookings 
+  // live in this array, we just pass the data straight through.
+  const dailyAppointments = bookingsResult?.data || [];
 
   const toggleBreak = async (hour: string) => {
     const doctorIdentifier = currentDoctor?.id || currentDoctor?.badge_id || activeDoctorId;
@@ -75,7 +87,6 @@ export function useDoctor() {
     });
   };
 
-  // 🌟 Dynamic Off-Work Selection Function
   const setOffWorkHour = async (hour: string | null) => {
     const doctorIdentifier = currentDoctor?.id || currentDoctor?.badge_id || activeDoctorId;
     if (!doctorIdentifier) return;
@@ -83,7 +94,7 @@ export function useDoctor() {
     updateDoctor({
       resource: "doctors",
       id: doctorIdentifier,
-      values: { off_work_hour: hour }, // Stores string (e.g. "14:00") or null
+      values: { off_work_hour: hour },
       mutationMode: "optimistic",
       successNotification: () => ({
         message: hour ? `Off-work cutoff time configured for ${hour}` : "Off-work configuration cleared",
@@ -92,7 +103,6 @@ export function useDoctor() {
     });
   };
 
-  // Dynamic Leave Request Function
   const requestLeave = (dateString: string, reason: string = "Personal Leave") => {
     if (!activeDoctorId) return;
     
@@ -110,7 +120,6 @@ export function useDoctor() {
     });
   };
 
-  // 🌟 NEW: Cancel Scheduled Leave Day Function
   const cancelLeave = (leaveId: string) => {
     deleteLeave({
       resource: "leaves",
@@ -138,13 +147,13 @@ export function useDoctor() {
     selectedDate,
     setSelectedDate,
     currentDoctor: currentDoctor || { badge_id: activeDoctorId, name: identity?.name || "Physician Staff", specialty: "General Clinic", breaks: [], off_work_hour: null },
-    dailyAppointments: bookingsResult?.data || [],
+    dailyAppointments, 
     doctorLeaves: leavesResult?.data || [], 
     handleEndShift,
     handleStatusUpdate: updateBookingStatus,
     toggleBreak,
     requestLeave, 
-    cancelLeave, // 🌟 Exposed leave revocation
-    setOffWorkHour, // 🌟 Exposed the off-work configuration method
+    cancelLeave,
+    setOffWorkHour,
   };
 }
