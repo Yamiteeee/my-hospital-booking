@@ -73,6 +73,7 @@ console.log("Database Response Error:", error);
     return {
       id: profile.badge_id || profile.id,
       name: profile.name || "Hospital Staff",
+      role: profile.role,
     };
   },
 };

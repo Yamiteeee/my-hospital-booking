@@ -1,33 +1,71 @@
 "use client";
 
 import React from "react";
-import { useIsAuthenticated } from "@refinedev/core";
+import { useIsAuthenticated, useGetIdentity } from "@refinedev/core"; // 1. Added useGetIdentity
 import { useRouter } from "next/navigation";
-import { Activity, ArrowUpRight, Lock } from "lucide-react";
+import { Activity, ArrowUpRight, Lock, Loader2 } from "lucide-react";
 import { NAVIGATION_LINKS } from "@/providers/data-providers/landingData";
 
 interface LandingHeaderProps {
   onNavClick: (e: React.MouseEvent<HTMLAnchorElement>, href: string) => void;
-  // Dynamic switch to safely change tab views inside the main application context if integrated
   onPortalViewSelect?: () => void;
+}
+
+// 2. Define your expected User identity shape (adjust properties to match your API)
+interface UserIdentity {
+  id: string;
+  name: string;
+  role: "receptionist" | "doctor" | string; 
 }
 
 export default function LandingHeader({ onNavClick, onPortalViewSelect }: LandingHeaderProps) {
   const router = useRouter();
-  const { data: authStatus } = useIsAuthenticated();
+  const { data: authStatus, isLoading: isAuthLoading } = useIsAuthenticated();
+  
+  // 3. Fetch the current logged-in user profile details
+  const { data: identity, isLoading: isIdentityLoading } = useGetIdentity<UserIdentity>();
 
-  const handlePortalAccess = (e: React.MouseEvent) => {
+  // Combine loading states so we don't route prematurely
+  const isLoading = isAuthLoading || isIdentityLoading;
+
+const handlePortalAccess = (e: React.MouseEvent) => {
     e.preventDefault();
     
+    if (isLoading) return;
+
     if (authStatus?.authenticated) {
-      // If the user has active session badge keys, route straight through or flip layout state
       if (onPortalViewSelect) {
         onPortalViewSelect();
       } else {
-        router.push("/");
+        // 1. Try to get role from Refine identity hook first
+        let userRole = identity?.role?.toLowerCase();
+
+        // 2. Foolproof backup: If Refine hook hasn't updated its cache yet, read localStorage directly
+        if (!userRole) {
+          try {
+            const localSession = localStorage.getItem("hospital_user_session");
+            if (localSession) {
+              const profile = JSON.parse(localSession);
+              userRole = profile?.role?.toLowerCase();
+            }
+          } catch (err) {
+            console.error("Failed to parse local session", err);
+          }
+        }
+
+        console.log("Header Debug - Resolved Role:", userRole);
+
+        // 3. Dynamic Routing
+        if (userRole === "receptionist") {
+          router.push("/receptionist");
+        } else if (userRole === "doctor") {
+          router.push("/doctor");
+        } else {
+          console.warn("Unknown user role:", userRole);
+          router.push("/"); 
+        }
       }
     } else {
-      // Secure fallback: If unauthorized, instantly redirect to company identity terminal
       router.push("/login");
     }
   };
@@ -63,17 +101,30 @@ export default function LandingHeader({ onNavClick, onPortalViewSelect }: Landin
         <div className="flex items-center gap-4 shrink-0">
           <button 
             onClick={handlePortalAccess}
-            className={`text-xs font-bold uppercase tracking-wider text-white transition-all duration-150 px-5 py-2.5 rounded-xl shadow-md flex items-center gap-2 group hover:-translate-y-0.5 transform-gpu ${
-              authStatus?.authenticated 
-                ? "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/5" 
-                : "bg-blue-600 hover:bg-blue-700 shadow-blue-500/5"
+            disabled={isLoading}
+            className={`text-xs font-bold uppercase tracking-wider text-white transition-all duration-150 px-5 py-2.5 rounded-xl shadow-md flex items-center gap-2 group transform-gpu ${
+              isLoading
+                ? "bg-slate-400 cursor-not-allowed shadow-none"
+                : authStatus?.authenticated 
+                  ? "bg-emerald-600 hover:bg-emerald-700 hover:-translate-y-0.5 shadow-emerald-500/5" 
+                  : "bg-blue-600 hover:bg-blue-700 hover:-translate-y-0.5 shadow-blue-500/5"
             }`}
           >
-            {authStatus?.authenticated ? "Go to Dashboard" : "Receptionist Portal"}
-            {authStatus?.authenticated ? (
-              <ArrowUpRight className="h-3.5 w-3.5 transition-transform duration-150 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+            {isLoading ? (
+              <>
+                Verifying Role...
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              </>
+            ) : authStatus?.authenticated ? (
+              <>
+                Go to Dashboard
+                <ArrowUpRight className="h-3.5 w-3.5 transition-transform duration-150 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+              </>
             ) : (
-              <Lock className="h-3 w-3 text-blue-200 transition-colors group-hover:text-white" />
+              <>
+                Receptionist Portal
+                <Lock className="h-3 w-3 text-blue-200 transition-colors group-hover:text-white" />
+              </>
             )}
           </button>
         </div>
